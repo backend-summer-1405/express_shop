@@ -1,6 +1,14 @@
+// ==================== GENERATOR ====================
+
 generator client {
   provider = "prisma-client-js"
 }
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../docs/erd.svg"
+}
+// ==================== DATASOURCE ====================
 
 datasource db {
   provider = "postgresql"
@@ -14,7 +22,31 @@ enum Role {
   ADMIN
 }
 
-// ==================== MODELS ====================
+enum ReactionType {
+  LIKE
+  DISLIKE
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  PURCHASE
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PurchaseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ==================== USER MODULE ====================
 
 model User {
   id        String   @id @default(uuid())
@@ -25,7 +57,22 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profiles  Profile[]
+  profiles        Profile[]
+  news            News[]
+  courses         Course[]
+  podcasts        Podcast[]
+  wallet          Wallet?
+  comments        NewsComment[]
+  courseComments  CourseComment[]
+  podcastComments PodcastComment[]
+  newsLikes       NewsLike[]
+  courseLikes     CourseLike[]
+  podcastLikes    PodcastLike[]
+  newsRatings     NewsRating[]
+  courseRatings   CourseRating[]
+  podcastRatings  PodcastRating[]
+  purchases       CoursePurchase[]
+  podcastPlays    PodcastPlay[]
 
   @@map("users")
 }
@@ -38,7 +85,275 @@ model Profile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images ProfileImage[]
 
   @@map("profiles")
+}
+
+model ProfileImage {
+  id        String   @id @default(uuid())
+  profileId String
+  url       String
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("profile_images")
+}
+
+// ==================== NEWS MODULE ====================
+
+model News {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  image     String?
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments NewsComment[]
+  likes    NewsLike[]
+  ratings  NewsRating[]
+
+  @@map("news")
+}
+
+model NewsComment {
+  id        String   @id @default(uuid())
+  newsId    String
+  userId    String
+  parentId  String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  news    News          @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  NewsComment?  @relation("NewsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies NewsComment[] @relation("NewsCommentReplies")
+
+  @@map("news_comments")
+}
+
+model NewsLike {
+  id        String       @id @default(uuid())
+  newsId    String
+  userId    String
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now())
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@map("news_likes")
+}
+
+model NewsRating {
+  id        String   @id @default(uuid())
+  newsId    String
+  userId    String
+  value     Int
+  createdAt DateTime @default(now())
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@map("news_ratings")
+}
+
+// ==================== COURSE MODULE ====================
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  price       Int      @default(0)
+  image       String?
+  isPublished Boolean  @default(false)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author    User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  CourseComment[]
+  likes     CourseLike[]
+  ratings   CourseRating[]
+  purchases CoursePurchase[]
+
+  @@map("courses")
+}
+
+model CourseComment {
+  id        String   @id @default(uuid())
+  courseId  String
+  userId    String
+  parentId  String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course  Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  CourseComment?  @relation("CourseCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies CourseComment[] @relation("CourseCommentReplies")
+
+  @@map("course_comments")
+}
+
+model CourseLike {
+  id        String       @id @default(uuid())
+  courseId  String
+  userId    String
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@map("course_likes")
+}
+
+model CourseRating {
+  id        String   @id @default(uuid())
+  courseId  String
+  userId    String
+  value     Int
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@map("course_ratings")
+}
+
+model CoursePurchase {
+  id        String         @id @default(uuid())
+  userId    String
+  courseId  String
+  status    PurchaseStatus @default(PENDING)
+  price     Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("course_purchases")
+}
+
+// ==================== WALLET MODULE ====================
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  amount      Int
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  description String?
+  refId       String?
+  createdAt   DateTime          @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+// ==================== PODCAST MODULE ====================
+
+model Podcast {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  audioFile   String
+  coverImage  String?
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author   User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments PodcastComment[]
+  likes    PodcastLike[]
+  ratings  PodcastRating[]
+  plays    PodcastPlay[]
+
+  @@map("podcasts")
+}
+
+model PodcastComment {
+  id        String   @id @default(uuid())
+  podcastId String
+  userId    String
+  parentId  String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  podcast Podcast          @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  PodcastComment?  @relation("PodcastCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PodcastComment[] @relation("PodcastCommentReplies")
+
+  @@map("podcast_comments")
+}
+
+model PodcastLike {
+  id        String       @id @default(uuid())
+  podcastId String
+  userId    String
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now())
+
+  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([podcastId, userId])
+  @@map("podcast_likes")
+}
+
+model PodcastRating {
+  id        String   @id @default(uuid())
+  podcastId String
+  userId    String
+  value     Int
+  createdAt DateTime @default(now())
+
+  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([podcastId, userId])
+  @@map("podcast_ratings")
+}
+
+model PodcastPlay {
+  id        String   @id @default(uuid())
+  podcastId String
+  userId    String?
+  ipAddress String?
+  playedAt  DateTime @default(now())
+
+  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("podcast_plays")
 }
