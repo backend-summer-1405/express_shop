@@ -4,11 +4,10 @@
   "description": "Backend API for shop project using Prisma and Express",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "postinstall": "prisma skills sync || exit 0"
-  },
+  "dev": "tsx watch src/server.ts",
+  "build": "tsc",
+  "start": "node dist/server.js"
+},
   "keywords": [],
   "author": "Donya",
   "license": "MIT",
