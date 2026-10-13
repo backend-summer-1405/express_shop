@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-
+// کلاس خطای سفارشی
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -14,18 +14,18 @@ export class AppError extends Error {
   }
 }
 
-
+// میدل‌ور مدیریت خطا
 export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-
+  // اگه خطا از نوع AppError بود، از statusCode خودش استفاده کن
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-
+  // خطاهای Prisma
   if (err.code === 'P2002') {
     statusCode = 409;
     message = 'This record already exists';
@@ -41,13 +41,24 @@ export const errorHandler = (
     message = 'Foreign key constraint failed';
   }
 
-
-  if (err.name === 'ZodError') {
+  // خطاهای Zod (اعتبارسنجی)
+  if (err.name === 'ZodError' || err.issues) {
     statusCode = 400;
-    message = err.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const issues = err.issues || err.errors || [];
+
+    if (Array.isArray(issues) && issues.length > 0) {
+      message = issues
+        .map((e: any) => {
+          const path = e.path?.join('.') || 'field';
+          return `${path}: ${e.message}`;
+        })
+        .join(', ');
+    } else {
+      message = 'Validation error';
+    }
   }
 
-
+  // خطای JWT
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     message = 'Invalid token';
@@ -58,7 +69,7 @@ export const errorHandler = (
     message = 'Token expired';
   }
 
-
+  // لاگ خطا در کنسول (فقط در حالت development)
   if (process.env.NODE_ENV === 'development') {
     console.error('❌ Error:', {
       message: err.message,
@@ -67,7 +78,7 @@ export const errorHandler = (
     });
   }
 
-
+  // ارسال پاسخ
   res.status(statusCode).json({
     success: false,
     message,

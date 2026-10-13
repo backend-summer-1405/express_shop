@@ -23,6 +23,12 @@ enum Role {
   ADMIN
 }
 
+enum EntityType {
+  NEWS
+  COURSE
+  PODCAST
+}
+
 enum ReactionType {
   LIKE
   DISLIKE
@@ -50,33 +56,27 @@ enum PurchaseStatus {
 // ==================== USER MODULE ====================
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      Role     @default(USER)
-  isActive  Boolean   @default(true)
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          Role      @default(USER)
+  isActive      Boolean   @default(true)
   emailVerified Boolean   @default(false)
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  profiles        Profile[]
-  news            News[]
-  courses         Course[]
-  podcasts        Podcast[]
-  wallet          Wallet?
-  comments        NewsComment[]
-  courseComments  CourseComment[]
-  podcastComments PodcastComment[]
-  newsLikes       NewsLike[]
-  courseLikes     CourseLike[]
-  podcastLikes    PodcastLike[]
-  newsRatings     NewsRating[]
-  courseRatings   CourseRating[]
-  podcastRatings  PodcastRating[]
-  purchases       CoursePurchase[]
-  podcastPlays    PodcastPlay[]
+  profiles     Profile[]
+  news         News[]
+  courses      Course[]
+  podcasts     Podcast[]
+  wallet       Wallet?
+  comments     Comment[]
+  likes        Like[]
+  ratings      Rating[]
+  purchases    CoursePurchase[]
+  podcastPlays PodcastPlay[]
 
   @@map("users")
 }
@@ -117,57 +117,9 @@ model News {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments NewsComment[]
-  likes    NewsLike[]
-  ratings  NewsRating[]
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@map("news")
-}
-
-model NewsComment {
-  id        String   @id @default(uuid())
-  newsId    String
-  userId    String
-  parentId  String?
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  news    News          @relation(fields: [newsId], references: [id], onDelete: Cascade)
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  NewsComment?  @relation("NewsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies NewsComment[] @relation("NewsCommentReplies")
-
-  @@map("news_comments")
-}
-
-model NewsLike {
-  id        String       @id @default(uuid())
-  newsId    String
-  userId    String
-  type      ReactionType @default(LIKE)
-  createdAt DateTime     @default(now())
-
-  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([newsId, userId])
-  @@map("news_likes")
-}
-
-model NewsRating {
-  id        String   @id @default(uuid())
-  newsId    String
-  userId    String
-  value     Int
-  createdAt DateTime @default(now())
-
-  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([newsId, userId])
-  @@map("news_ratings")
 }
 
 // ==================== COURSE MODULE ====================
@@ -184,57 +136,9 @@ model Course {
   updatedAt   DateTime @updatedAt
 
   author    User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments  CourseComment[]
-  likes     CourseLike[]
-  ratings   CourseRating[]
   purchases CoursePurchase[]
 
   @@map("courses")
-}
-
-model CourseComment {
-  id        String   @id @default(uuid())
-  courseId  String
-  userId    String
-  parentId  String?
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  course  Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  CourseComment?  @relation("CourseCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies CourseComment[] @relation("CourseCommentReplies")
-
-  @@map("course_comments")
-}
-
-model CourseLike {
-  id        String       @id @default(uuid())
-  courseId  String
-  userId    String
-  type      ReactionType @default(LIKE)
-  createdAt DateTime     @default(now())
-
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, userId])
-  @@map("course_likes")
-}
-
-model CourseRating {
-  id        String   @id @default(uuid())
-  courseId  String
-  userId    String
-  value     Int
-  createdAt DateTime @default(now())
-
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, userId])
-  @@map("course_ratings")
 }
 
 model CoursePurchase {
@@ -295,58 +199,10 @@ model Podcast {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments PodcastComment[]
-  likes    PodcastLike[]
-  ratings  PodcastRating[]
-  plays    PodcastPlay[]
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  plays  PodcastPlay[]
 
   @@map("podcasts")
-}
-
-model PodcastComment {
-  id        String   @id @default(uuid())
-  podcastId String
-  userId    String
-  parentId  String?
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  podcast Podcast          @relation(fields: [podcastId], references: [id], onDelete: Cascade)
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  PodcastComment?  @relation("PodcastCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies PodcastComment[] @relation("PodcastCommentReplies")
-
-  @@map("podcast_comments")
-}
-
-model PodcastLike {
-  id        String       @id @default(uuid())
-  podcastId String
-  userId    String
-  type      ReactionType @default(LIKE)
-  createdAt DateTime     @default(now())
-
-  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([podcastId, userId])
-  @@map("podcast_likes")
-}
-
-model PodcastRating {
-  id        String   @id @default(uuid())
-  podcastId String
-  userId    String
-  value     Int
-  createdAt DateTime @default(now())
-
-  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([podcastId, userId])
-  @@map("podcast_ratings")
 }
 
 model PodcastPlay {
@@ -360,4 +216,54 @@ model PodcastPlay {
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("podcast_plays")
+}
+
+// ==================== SHARED MODELS ====================
+
+model Comment {
+  id         String     @id @default(uuid())
+  entityType EntityType
+  entityId   String
+  userId     String
+  parentId   String?
+  content    String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([entityType, entityId])
+  @@map("comments")
+}
+
+model Like {
+  id         String       @id @default(uuid())
+  entityType EntityType
+  entityId   String
+  userId     String
+  type       ReactionType @default(LIKE)
+  createdAt  DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entityType, entityId, userId])
+  @@index([entityType, entityId])
+  @@map("likes")
+}
+
+model Rating {
+  id         String     @id @default(uuid())
+  entityType EntityType
+  entityId   String
+  userId     String
+  value      Int
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entityType, entityId, userId])
+  @@index([entityType, entityId])
+  @@map("ratings")
 }
