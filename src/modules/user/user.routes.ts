@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import * as userController from './user.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { uploadImage } from '../../middlewares/upload.middleware';
+import { adminOnly } from '../../middlewares/role.middleware';
+import { uploadMultipleImages } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { registerSchema, loginSchema, updateProfileSchema } from './user.validation';
 
@@ -11,7 +12,7 @@ const router = Router();
 
 /**
  * @swagger
- * /users/register:
+ * /api/users/register:
  *   post:
  *     summary: Register a new user
  *     tags: [Users]
@@ -45,7 +46,7 @@ router.post('/register', validate(registerSchema), userController.register);
 
 /**
  * @swagger
- * /users/login:
+ * /api/users/login:
  *   post:
  *     summary: Login user
  *     tags: [Users]
@@ -75,7 +76,7 @@ router.post('/login', validate(loginSchema), userController.login);
 
 /**
  * @swagger
- * /users/profile:
+ * /api/users/me:
  *   get:
  *     summary: Get current user profile
  *     tags: [Users]
@@ -87,11 +88,11 @@ router.post('/login', validate(loginSchema), userController.login);
  *       401:
  *         description: Unauthorized
  */
-router.get('/profile', authenticate, userController.getProfile);
+router.get('/me', authenticate, userController.getMe);
 
 /**
  * @swagger
- * /users/profile:
+ * /api/users/me:
  *   put:
  *     summary: Update current user profile
  *     tags: [Users]
@@ -116,13 +117,13 @@ router.get('/profile', authenticate, userController.getProfile);
  *       401:
  *         description: Unauthorized
  */
-router.put('/profile', authenticate, validate(updateProfileSchema), userController.updateProfile);
+router.put('/me', authenticate, validate(updateProfileSchema), userController.updateMe);
 
 /**
  * @swagger
- * /users/profile/image:
+ * /api/users/me/images:
  *   post:
- *     summary: Upload profile image
+ *     summary: Upload profile images (multiple)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -133,20 +134,57 @@ router.put('/profile', authenticate, validate(updateProfileSchema), userControll
  *           schema:
  *             type: object
  *             properties:
- *               image:
- *                 type: string
- *                 format: binary
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
- *       200:
- *         description: Image uploaded
+ *       201:
+ *         description: Images uploaded
  *       400:
- *         description: No file uploaded
+ *         description: No files uploaded
+ *       401:
+ *         description: Unauthorized
  */
 router.post(
-  '/profile/image',
+  '/me/images',
   authenticate,
-  uploadImage.single('image'),
-  userController.uploadProfileImage
+  uploadMultipleImages,
+  userController.uploadProfileImages
 );
+
+// ==================== ADMIN ROUTES ====================
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get all users (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of users per page
+ *     responses:
+ *       200:
+ *         description: List of users
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied (Admin only)
+ */
+router.get('/', authenticate, adminOnly, userController.getAllUsers);
 
 export default router;

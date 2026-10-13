@@ -78,9 +78,9 @@ export const login = async (
   }
 };
 
-// ==================== GET PROFILE ====================
+// ==================== GET ME ====================
 
-export const getProfile = async (
+export const getMe = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -101,9 +101,9 @@ export const getProfile = async (
   }
 };
 
-// ==================== UPDATE PROFILE ====================
+// ==================== UpdateMe ====================
 
-export const updateProfile = async (
+export const updateMe = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -132,8 +132,7 @@ export const updateProfile = async (
 };
 
 // ==================== UPLOAD PROFILE IMAGE ====================
-
-export const uploadProfileImage = async (
+export const uploadProfileImages = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -143,16 +142,45 @@ export const uploadProfileImage = async (
       throw new AppError('Authentication required', 401);
     }
 
-    if (!req.file) {
-      throw new AppError('No file uploaded', 400);
+    if (!req.files || (req.files as Express.Multer.File[]).length === 0) {
+      throw new AppError('No files uploaded', 400);
     }
 
-    const fileUrl = `/uploads/images/${req.file.filename}`;
+    const files = req.files as Express.Multer.File[];
+    const images = [];
+
+    for (const file of files) {
+      const fileUrl = `/uploads/images/${file.filename}`;
+      const image = await userService.addProfileImage(req.user.id, fileUrl);
+      images.push(image);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Images uploaded successfully',
+      data: { images },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== GET ALL USERS (ADMIN ONLY) ====================
+
+export const getAllUsers = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await userService.getAllUsers(page, limit);
 
     res.status(200).json({
       success: true,
-      message: 'Image uploaded successfully',
-      data: { url: fileUrl },
+      data: result,
     });
   } catch (error) {
     next(error);

@@ -29,9 +29,7 @@ export const createUser = async (data: CreateUserInput) => {
     throw new AppError('Email already exists', 409);
   }
 
-
   const hashedPassword = await bcrypt.hash(password, 12);
-
 
   const user = await prisma.user.create({
     data: {
@@ -139,7 +137,15 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
     throw new AppError('User not found', 404);
   }
 
-  if (data.email && data.email !== existingUser.email) {
+  const hasNameChanged = data.name !== undefined && data.name !== existingUser.name;
+  const hasEmailChanged = data.email !== undefined && data.email !== existingUser.email;
+  const hasPasswordChanged = !!data.password;
+
+  if (!hasNameChanged && !hasEmailChanged && !hasPasswordChanged) {
+    throw new AppError('No changes detected', 400);
+  }
+
+  if (hasEmailChanged) {
     const emailTaken = await prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -150,15 +156,15 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
   }
 
   let hashedPassword: string | undefined;
-  if (data.password) {
-    hashedPassword = await bcrypt.hash(data.password, 12);
+  if (hasPasswordChanged) {
+    hashedPassword = await bcrypt.hash(data.password!, 12);
   }
 
   const user = await prisma.user.update({
     where: { id },
     data: {
-      ...(data.email && { email: data.email }),
-      ...(data.name !== undefined && { name: data.name }),
+      ...(hasNameChanged && { name: data.name }),
+      ...(hasEmailChanged && { email: data.email }),
       ...(hashedPassword && { password: hashedPassword }),
     },
     select: {
@@ -220,4 +226,41 @@ export const changePassword = async (
   });
 
   return { message: 'Password changed successfully' };
+};
+
+// ==================== ADD PROFILE IMAGE ====================
+
+export const addProfileImage = async (userId: string, imageUrl: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profiles: true },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  let profileId: string;
+
+  if (user.profiles.length === 0) {
+    const newProfile = await prisma.profile.create({
+      data: {
+        userId: user.id,
+        bio: '',
+        avatar: imageUrl,
+      },
+    });
+    profileId = newProfile.id;
+  } else {
+    profileId = user.profiles[0].id;
+  }
+
+  const image = await prisma.profileImage.create({
+    data: {
+      profileId,
+      url: imageUrl,
+    },
+  });
+
+  return image;
 };
