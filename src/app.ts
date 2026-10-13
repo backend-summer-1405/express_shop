@@ -3,6 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
+import userRoutes from './modules/user/user.routes';  // ← این رو اضافه کن
 
 const app: Application = express();
 
@@ -24,16 +25,6 @@ app.use(
 
 // ==================== HEALTH CHECK ====================
 
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Check server health
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Server is running
- */
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
@@ -48,6 +39,10 @@ app.get('/', (req: Request, res: Response) => {
     version: '1.0.0',
   });
 });
+
+// ==================== ROUTES ====================
+
+app.use('/api/users', userRoutes);  // ← این خط خیلی مهمه!
 
 // ==================== 404 & ERROR HANDLERS ====================
 
