@@ -9,9 +9,9 @@ import { AppError } from './errorHandler';
 const UPLOAD_DIR = 'uploads';
 const IMAGE_DIR = path.join(UPLOAD_DIR, 'images');
 const AUDIO_DIR = path.join(UPLOAD_DIR, 'audio');
+const NEWS_DIR = path.join(UPLOAD_DIR, 'news');
 
-
-[UPLOAD_DIR, IMAGE_DIR, AUDIO_DIR].forEach((dir) => {
+[UPLOAD_DIR, IMAGE_DIR, AUDIO_DIR, NEWS_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -21,31 +21,34 @@ const AUDIO_DIR = path.join(UPLOAD_DIR, 'audio');
 
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
-    // اگه فایل صوتی بود، برو توی audio
-    if (file.mimetype.startsWith('audio/')) {
+
+    if (req.originalUrl.includes('/news')) {
+      cb(null, NEWS_DIR);
+    }
+
+    else if (file.mimetype.startsWith('audio/')) {
       cb(null, AUDIO_DIR);
-    } else {
+    }
+
+    else {
       cb(null, IMAGE_DIR);
     }
   },
   filename: (req: Request, file: Express.Multer.File, cb) => {
-
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
     cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
   },
 });
 
-// ==================== File Filter ====================
+
 
 const fileFilter = (
   req: Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-
   const allowedImages = /jpeg|jpg|png|gif|webp/;
-
   const allowedAudio = /mp3|wav|ogg|m4a/;
 
   const extname = path.extname(file.originalname).toLowerCase();
@@ -59,7 +62,7 @@ const fileFilter = (
   }
 };
 
-// ==================== Multer Instances ====================
+
 
 
 export const uploadImage = multer({
