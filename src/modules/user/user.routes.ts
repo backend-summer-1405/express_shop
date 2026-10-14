@@ -5,6 +5,7 @@ import { adminOnly } from '../../middlewares/role.middleware';
 import { uploadMultipleImages } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { registerSchema, loginSchema, updateProfileSchema } from './user.validation';
+import { authLimiter } from '../../middlewares/rateLimiter.middleware';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ const router = Router();
  *       409:
  *         description: Email already exists
  */
-router.post('/register', validate(registerSchema), userController.register);
+router.post('/register', authLimiter, validate(registerSchema), userController.register);
 
 /**
  * @swagger
@@ -70,7 +71,7 @@ router.post('/register', validate(registerSchema), userController.register);
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(loginSchema), userController.login);
+router.post('/login', authLimiter, validate(loginSchema), userController.login);
 
 // ==================== PROTECTED ROUTES ====================
 
