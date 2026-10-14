@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import * as newsService from './news.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/errorHandler';
+import path from 'path';
+import { processImage } from '../../utils/imageProcessor';
 
 // ==================== CREATE NEWS ====================
 
@@ -17,6 +19,7 @@ export const createNews = async (
 
     const { title, content } = req.body;
 
+    // ==================== اعتبارسنجی دستی ====================
 
     if (!title || title.length < 3) {
       throw new AppError('Title must be at least 3 characters', 400);
@@ -30,15 +33,28 @@ export const createNews = async (
       throw new AppError('Content must be at least 10 characters', 400);
     }
 
-
+    // ==================== پردازش عکس با Sharp ====================
 
     let imageUrl: string | undefined;
+
     if (req.file) {
-      imageUrl = `/uploads/news/${req.file.filename}`;
+
+      const processedPath = await processImage(req.file.path, {
+        width: 1200,
+        height: 800,
+        quality: 80,
+        format: 'webp',
+      });
+
+
+      const filename = path.basename(processedPath);
+      imageUrl = `/uploads/news/${filename}`;
     } else if (req.body.image) {
+
       imageUrl = req.body.image;
     }
 
+    // ==================== ساخت خبر ====================
 
     const news = await newsService.createNews({
       title,
@@ -56,7 +72,6 @@ export const createNews = async (
     next(error);
   }
 };
-
 // ==================== GET ALL NEWS ====================
 
 export const getAllNews = async (

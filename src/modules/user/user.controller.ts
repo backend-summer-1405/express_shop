@@ -132,6 +132,8 @@ export const updateMe = async (
 };
 
 // ==================== UPLOAD PROFILE IMAGE ====================
+import { processImage } from '../../utils/imageProcessor';
+
 export const uploadProfileImages = async (
   req: AuthRequest,
   res: Response,
@@ -150,7 +152,15 @@ export const uploadProfileImages = async (
     const images = [];
 
     for (const file of files) {
-      const fileUrl = `/uploads/images/${file.filename}`;
+      const processedPath = await processImage(file.path, {
+        width: 500,
+        height: 500,
+        quality: 80,
+        format: 'webp',
+      });
+
+      const filename = path.basename(processedPath);
+      const fileUrl = `/uploads/images/${filename}`;
       const image = await userService.addProfileImage(req.user.id, fileUrl);
       images.push(image);
     }

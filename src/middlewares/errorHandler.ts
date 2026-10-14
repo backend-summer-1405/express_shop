@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../lib/logger';
 
-// کلاس خطای سفارشی
+// ==================== CUSTOM ERROR ====================
+
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -14,14 +16,14 @@ export class AppError extends Error {
   }
 }
 
-// میدل‌ور مدیریت خطا
+// ==================== ERROR HANDLER ====================
+
 export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  // اگه خطا از نوع AppError بود، از statusCode خودش استفاده کن
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
@@ -41,7 +43,7 @@ export const errorHandler = (
     message = 'Foreign key constraint failed';
   }
 
-  // خطاهای Zod (اعتبارسنجی)
+  // خطاهای Zod
   if (err.name === 'ZodError' || err.issues) {
     statusCode = 400;
     const issues = err.issues || err.errors || [];
@@ -58,7 +60,7 @@ export const errorHandler = (
     }
   }
 
-  // خطای JWT
+  // خطاهای JWT
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     message = 'Invalid token';
@@ -69,16 +71,27 @@ export const errorHandler = (
     message = 'Token expired';
   }
 
-  // لاگ خطا در کنسول (فقط در حالت development)
-  if (process.env.NODE_ENV === 'development') {
-    console.error('❌ Error:', {
-      message: err.message,
-      statusCode,
-      stack: err.stack,
-    });
+  // ==================== لاگ خطا ====================
+
+  const logData = {
+    message: err.message,
+    statusCode,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    userId: (req as any).user?.id || 'anonymous',
+    stack: err.stack,
+  };
+
+  if (statusCode >= 500) {
+    logger.error('Server Error:', logData);
+  } else if (statusCode >= 400) {
+    logger.warn('Client Error:', logData);
   }
 
-  // ارسال پاسخ
+  // ==================== ارسال پاسخ ====================
+
   res.status(statusCode).json({
     success: false,
     message,
