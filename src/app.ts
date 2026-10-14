@@ -1,16 +1,32 @@
 import express, { Application, Request, Response } from 'express';
+import path from 'path';
+import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
-import userRoutes from './modules/user/user.routes';  // ← این رو اضافه کن
+import { generalLimiter } from './middlewares/rateLimiter.middleware';
+import userRoutes from './modules/user/user.routes';
+import newsRoutes from './modules/news/news.routes';
 
 const app: Application = express();
+
+// ==================== SECURITY ====================
+
+app.use(helmet());
 
 // ==================== MIDDLEWARES ====================
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ==================== RATE LIMITING ====================
+
+app.use('/api', generalLimiter);
+
+// ==================== STATIC FILES ====================
+
+app.use('/uploads', express.static(path.resolve('uploads')));
 
 // ==================== SWAGGER ====================
 
@@ -42,7 +58,8 @@ app.get('/', (req: Request, res: Response) => {
 
 // ==================== ROUTES ====================
 
-app.use('/api/users', userRoutes);  // ← این خط خیلی مهمه!
+app.use('/api/users', userRoutes);
+app.use('/api/news', newsRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 
