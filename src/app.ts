@@ -8,6 +8,7 @@ import { notFound } from './middlewares/notFound';
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
 import userRoutes from './modules/user/user.routes';
 import newsRoutes from './modules/news/news.routes';
+import walletRoutes from './modules/wallet/wallet.routes';
 
 const app: Application = express();
 
@@ -41,7 +42,7 @@ app.use(
 
 // ==================== HEALTH CHECK ====================
 
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
     message: 'Server is running',
@@ -49,17 +50,17 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     message: 'Welcome to Express Shop API',
     version: '1.0.0',
   });
 });
-
 // ==================== ROUTES ====================
 
 app.use('/api/users', userRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 
