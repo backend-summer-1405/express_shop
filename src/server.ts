@@ -1,10 +1,15 @@
 import app from './app';
+import { verifyEmailConnection } from './lib/mailer';
 
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // ==================== VERIFY EMAIL CONNECTION ====================
+
+  verifyEmailConnection();
 });
 
 // ==================== GRACEFUL SHUTDOWN ====================

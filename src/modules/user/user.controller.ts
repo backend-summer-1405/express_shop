@@ -3,6 +3,9 @@ import * as userService from './user.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/errorHandler';
 import { generateToken } from '../../utils/jwt';
+import path from 'path';
+import { sendEmail } from '../../lib/mailer';
+import { processImage } from '../../utils/imageProcessor';
 
 // ==================== REGISTER ====================
 
@@ -16,12 +19,41 @@ export const register = async (
 
     const user = await userService.createUser({ email, password, name });
 
-
     const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
     });
+
+    // ==================== ارسال ایمیل خوش‌آمدگویی ====================
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Welcome to Express Shop! 🎉',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Welcome ${user.name || 'to Express Shop'}! 🎉</h1>
+            <p>Thank you for registering with <strong>Express Shop</strong>.</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your account details:</p>
+            <ul>
+              <li><strong>Email:</strong> ${user.email}</li>
+              <li><strong>Name:</strong> ${user.name || 'Not provided'}</li>
+              <li><strong>Role:</strong> ${user.role}</li>
+            </ul>
+            <p>You can now login and start shopping!</p>
+            <hr style="border: 1px solid #eee; margin: 20px 0;">
+            <p style="color: #888; font-size: 12px;">
+              This is an automated email from Express Shop. Please do not reply.
+            </p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      // اگه ایمیل خطا داد، ثبت‌نام رو متوقف نکن
+      console.error('Failed to send welcome email:', emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -43,13 +75,11 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-
     const user = await userService.getUserByEmail(email);
 
     if (!user) {
       throw new AppError('Invalid email or password', 401);
     }
-
 
     const bcrypt = await import('bcrypt');
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -58,13 +88,11 @@ export const login = async (
       throw new AppError('Invalid email or password', 401);
     }
 
-
     const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
     });
-
 
     const { password: _, ...userWithoutPassword } = user;
 
@@ -132,7 +160,6 @@ export const updateMe = async (
 };
 
 // ==================== UPLOAD PROFILE IMAGE ====================
-import { processImage } from '../../utils/imageProcessor';
 
 export const uploadProfileImages = async (
   req: AuthRequest,
