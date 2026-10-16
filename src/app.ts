@@ -9,6 +9,7 @@ import { generalLimiter } from './middlewares/rateLimiter.middleware';
 import userRoutes from './modules/user/user.routes';
 import newsRoutes from './modules/news/news.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
+import courseRoutes from './modules/course/course.routes';
 
 const app: Application = express();
 
@@ -61,6 +62,7 @@ app.get('/', (_req: Request, res: Response) => {
 app.use('/api/users', userRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/courses', courseRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 

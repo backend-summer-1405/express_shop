@@ -180,6 +180,7 @@ model Transaction {
   status      TransactionStatus @default(PENDING)
   description String?
   refId       String?
+  authority   String?
   createdAt   DateTime          @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
