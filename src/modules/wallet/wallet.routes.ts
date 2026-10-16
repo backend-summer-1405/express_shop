@@ -9,7 +9,34 @@ import {
 
 const router = Router();
 
-// ==================== ALL ROUTES REQUIRE AUTHENTICATION ====================
+// ==================== PUBLIC ROUTES (NO AUTH) ====================
+
+/**
+ * @swagger
+ * /api/wallet/charge/verify:
+ *   get:
+ *     summary: Verify Zarinpal payment (callback)
+ *     tags: [Wallet]
+ *     parameters:
+ *       - in: query
+ *         name: Authority
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: Status
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment verified
+ *       400:
+ *         description: Payment cancelled or invalid
+ */
+router.get('/charge/verify', walletController.verifyCharge);
+
+// ==================== ALL OTHER ROUTES REQUIRE AUTHENTICATION ====================
 
 router.use(authenticate);
 
@@ -49,13 +76,52 @@ router.get('/', walletController.getWallet);
  */
 router.get('/balance', walletController.getBalance);
 
-// ==================== CHARGE WALLET ====================
+// ==================== CHARGE WALLET (DIRECT) ====================
 
 /**
  * @swagger
  * /api/wallet/charge:
  *   post:
- *     summary: Charge wallet (deposit)
+ *     summary: Charge wallet (direct - for testing)
+ *     tags: [Wallet]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: integer
+ *                 example: 50000
+ *               description:
+ *                 type: string
+ *                 example: Direct charge
+ *     responses:
+ *       200:
+ *         description: Wallet charged
+ *       400:
+ *         description: Invalid amount
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  '/charge',
+  validate(chargeWalletSchema),
+  walletController.chargeWallet
+);
+
+// ==================== REQUEST CHARGE (ZARINPAL) ====================
+
+/**
+ * @swagger
+ * /api/wallet/charge/request:
+ *   post:
+ *     summary: Request wallet charge via Zarinpal
  *     tags: [Wallet]
  *     security:
  *       - bearerAuth: []
@@ -76,16 +142,16 @@ router.get('/balance', walletController.getBalance);
  *                 example: Charge via Zarinpal
  *     responses:
  *       200:
- *         description: Wallet charged
+ *         description: Payment URL returned
  *       400:
  *         description: Invalid amount
  *       401:
  *         description: Unauthorized
  */
 router.post(
-  '/charge',
+  '/charge/request',
   validate(chargeWalletSchema),
-  walletController.chargeWallet
+  walletController.requestCharge
 );
 
 // ==================== WITHDRAW WALLET ====================

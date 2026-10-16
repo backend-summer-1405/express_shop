@@ -142,3 +142,73 @@ export const getBalance = async (
     next(error);
   }
 };
+
+// ==================== REQUEST CHARGE (ZARINPAL) ====================
+
+export const requestCharge = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const { amount, description } = req.body;
+
+    if (!amount || amount < 1000) {
+      throw new AppError('Minimum charge is 1000', 400);
+    }
+
+    const result = await walletService.requestCharge(
+      req.user.id,
+      amount,
+      description
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment request created',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== VERIFY CHARGE (ZARINPAL CALLBACK) ====================
+
+export const verifyCharge = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authority = req.query.Authority as string;
+    const status = req.query.Status as string;
+
+    if (!authority) {
+      throw new AppError('Authority is required', 400);
+    }
+
+
+    if (status !== 'OK') {
+      res.status(400).json({
+        success: false,
+        message: 'Payment cancelled by user',
+      });
+      return;
+    }
+
+    const result = await walletService.verifyCharge(authority);
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

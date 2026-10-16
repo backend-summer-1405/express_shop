@@ -1,5 +1,8 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
+import { createPaymentRequest, verifyPayment } from '../../lib/zarinpal';
+import * as zarinpalModule from '../../lib/zarinpal';
+console.log('Zarinpal module keys:', Object.keys(zarinpalModule));
 
 // ==================== GET WALLET ====================
 
@@ -204,4 +207,104 @@ export const getWalletBalance = async (userId: string) => {
   }
 
   return wallet;
+};
+
+// ==================== REQUEST CHARGE (ZARINPAL) ====================
+
+export const requestCharge = async (
+  userId: string,
+  amount: number,
+  description?: string
+) => {
+  if (amount < 1000) {
+    throw new AppError('Minimum charge is 1000', 400);
+  }
+
+
+  let wallet = await prisma.wallet.findUnique({
+    where: { userId },
+  });
+
+  if (!wallet) {
+    wallet = await prisma.wallet.create({
+      data: { userId, balance: 0 },
+    });
+  }
+
+
+  const callbackUrl =
+    process.env.ZARINPAL_CALLBACK_URL ||
+    'http://localhost:3000/api/wallet/charge/verify';
+
+const payment = await createPaymentRequest({
+  amount,
+  description: description || 'Wallet charge',
+  callbackUrl,
+});
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      walletId: wallet.id,
+      amount,
+      type: 'DEPOSIT',
+      status: 'PENDING',
+      description: description || 'Wallet charge via Zarinpal',
+      authority: payment.authority,
+    },
+  });
+
+  return {
+    transaction,
+    paymentUrl: payment.url,
+    authority: payment.authority,
+  };
+};
+
+// ==================== VERIFY CHARGE (ZARINPAL CALLBACK) ====================
+
+export const verifyCharge = async (authority: string) => {
+
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      authority,
+      status: 'PENDING',
+    },
+    include: { wallet: true },
+  });
+
+  if (!transaction) {
+    throw new AppError('Transaction not found or already processed', 404);
+  }
+
+  const verification = await verifyPayment(authority, transaction.amount);
+
+  // ==================== تراکنش اتمیک ====================
+
+  const result = await prisma.$transaction(async (tx) => {
+
+    const updatedTransaction = await tx.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        status: 'SUCCESS',
+        refId: verification.refId,
+      },
+    });
+
+
+    const updatedWallet = await tx.wallet.update({
+      where: { id: transaction.walletId },
+      data: {
+        balance: {
+          increment: transaction.amount,
+        },
+      },
+    });
+
+    return {
+      transaction: updatedTransaction,
+      wallet: updatedWallet,
+    };
+  });
+
+  return result;
 };
