@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as courseController from './course.controller';
-import { authenticate } from '../../middlewares/auth.middleware';
+import { authenticate, optionalAuth } from '../../middlewares/auth.middleware';
 import { adminOnly } from '../../middlewares/role.middleware';
 import { uploadImage } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
@@ -13,13 +13,13 @@ import {
 
 const router = Router();
 
-// ==================== PUBLIC ROUTES ====================
+// ==================== PUBLIC ROUTES (OPTIONAL AUTH) ====================
 
 /**
  * @swagger
  * /api/courses:
  *   get:
- *     summary: Get all published courses
+ *     summary: Get all published courses (supports isLiked if authenticated)
  *     tags: [Courses]
  *     parameters:
  *       - in: query
@@ -36,13 +36,27 @@ const router = Router();
  *       200:
  *         description: List of courses
  */
-router.get('/', courseController.getAllCourses);
+router.get('/', optionalAuth, courseController.getAllCourses);
+
+/**
+ * @swagger
+ * /api/courses/my-favorites:
+ *   get:
+ *     summary: Get current user's favorite courses
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of favorite courses
+ */
+router.get('/my-favorites', authenticate, courseController.getMyFavorites);
 
 /**
  * @swagger
  * /api/courses/{id}:
  *   get:
- *     summary: Get course by ID
+ *     summary: Get course by ID (supports isLiked if authenticated)
  *     tags: [Courses]
  *     parameters:
  *       - in: path
@@ -56,7 +70,7 @@ router.get('/', courseController.getAllCourses);
  *       404:
  *         description: Course not found
  */
-router.get('/:id', courseController.getCourseById);
+router.get('/:id', optionalAuth, courseController.getCourseById);
 
 // ==================== ADMIN ROUTES ====================
 
@@ -348,6 +362,30 @@ router.post(
   validate(toggleLikeSchema),
   courseController.toggleLike
 );
+
+// ==================== FAVORITE ROUTES ====================
+
+/**
+ * @swagger
+ * /api/courses/{id}/favorite:
+ *   post:
+ *     summary: Toggle favorite on course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Favorite toggled
+ *       404:
+ *         description: Course not found
+ */
+router.post('/:id/favorite', authenticate, courseController.toggleFavorite);
 
 // ==================== RATING ROUTES ====================
 

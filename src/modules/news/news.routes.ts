@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as newsController from './news.controller';
-import { authenticate } from '../../middlewares/auth.middleware';
+import { authenticate, optionalAuth } from '../../middlewares/auth.middleware';
 import { adminOnly } from '../../middlewares/role.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import {
@@ -12,15 +12,16 @@ import {
 } from './news.validation';
 import { createLimiter, commentLimiter } from '../../middlewares/rateLimiter.middleware';
 import { uploadImage } from '../../middlewares/upload.middleware';
+
 const router = Router();
 
-// ==================== PUBLIC ROUTES ====================
+// ==================== PUBLIC ROUTES (OPTIONAL AUTH) ====================
 
 /**
  * @swagger
  * /api/news:
  *   get:
- *     summary: Get all news
+ *     summary: Get all news (supports isLiked if authenticated)
  *     tags: [News]
  *     parameters:
  *       - in: query
@@ -37,13 +38,13 @@ const router = Router();
  *       200:
  *         description: List of news
  */
-router.get('/', newsController.getAllNews);
+router.get('/', optionalAuth, newsController.getAllNews);
 
 /**
  * @swagger
  * /api/news/{id}:
  *   get:
- *     summary: Get news by ID
+ *     summary: Get news by ID (supports isLiked if authenticated)
  *     tags: [News]
  *     parameters:
  *       - in: path
@@ -57,7 +58,7 @@ router.get('/', newsController.getAllNews);
  *       404:
  *         description: News not found
  */
-router.get('/:id', newsController.getNewsById);
+router.get('/:id', optionalAuth, newsController.getNewsById);
 
 // ==================== ADMIN ROUTES ====================
 
@@ -90,7 +91,15 @@ router.get('/:id', newsController.getNewsById);
  *       201:
  *         description: News created
  */
-router.post('/', authenticate, adminOnly, createLimiter, uploadImage.single('image'), validate(createNewsSchema), newsController.createNews);
+router.post(
+  '/',
+  authenticate,
+  adminOnly,
+  createLimiter,
+  uploadImage.single('image'),
+  validate(createNewsSchema),
+  newsController.createNews
+);
 
 /**
  * @swagger

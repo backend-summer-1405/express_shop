@@ -40,7 +40,11 @@ export const createCourse = async (data: CreateCourseInput) => {
   return course;
 };
 
-export const getAllCourses = async (page: number = 1, limit: number = 10) => {
+export const getAllCourses = async (
+  page: number = 1,
+  limit: number = 10,
+  userId?: string
+) => {
   const skip = (page - 1) * limit;
 
   const [courses, total] = await Promise.all([
@@ -58,28 +62,76 @@ export const getAllCourses = async (page: number = 1, limit: number = 10) => {
     prisma.course.count({ where: { isPublished: true } }),
   ]);
 
-  // اضافه کردن آمار
   const coursesWithStats = await Promise.all(
     courses.map(async (course) => {
-      const [commentCount, likeCount, ratingAvg, purchaseCount] = await Promise.all([
-        prisma.comment.count({ where: { entityType: 'COURSE', entityId: course.id } }),
-        prisma.like.count({ where: { entityType: 'COURSE', entityId: course.id, type: 'LIKE' } }),
-        prisma.rating.aggregate({
-          where: { entityType: 'COURSE', entityId: course.id },
-          _avg: { value: true },
-          _count: { value: true },
-        }),
-        prisma.coursePurchase.count({ where: { courseId: course.id, status: 'APPROVED' } }),
-      ]);
+      const [commentCount, likeCount, ratingAvg, purchaseCount, favoriteCount] =
+        await Promise.all([
+          prisma.comment.count({ where: { entityType: 'COURSE', entityId: course.id } }),
+          prisma.like.count({
+            where: { entityType: 'COURSE', entityId: course.id, type: 'LIKE' },
+          }),
+          prisma.rating.aggregate({
+            where: { entityType: 'COURSE', entityId: course.id },
+            _avg: { value: true },
+            _count: { value: true },
+          }),
+          prisma.coursePurchase.count({ where: { courseId: course.id, status: 'APPROVED' } }),
+          prisma.favorite.count({ where: { entityType: 'COURSE', entityId: course.id } }),
+        ]);
+
+      // چک isLiked, isFavorite, userRating
+      let isLiked = false;
+      let isFavorite = false;
+      let userRating: number | null = null;
+
+      if (userId) {
+        const [userLike, userFavorite, userRatingData] = await Promise.all([
+          prisma.like.findUnique({
+            where: {
+              entityType_entityId_userId: {
+                entityType: 'COURSE',
+                entityId: course.id,
+                userId,
+              },
+            },
+          }),
+          prisma.favorite.findUnique({
+            where: {
+              entityType_entityId_userId: {
+                entityType: 'COURSE',
+                entityId: course.id,
+                userId,
+              },
+            },
+          }),
+          prisma.rating.findUnique({
+            where: {
+              entityType_entityId_userId: {
+                entityType: 'COURSE',
+                entityId: course.id,
+                userId,
+              },
+            },
+          }),
+        ]);
+
+        isLiked = userLike?.type === 'LIKE';
+        isFavorite = !!userFavorite;
+        userRating = userRatingData?.value || null;
+      }
 
       return {
         ...course,
+        isLiked,
+        isFavorite,
+        userRating,
         stats: {
           comments: commentCount,
           likes: likeCount,
           rating: ratingAvg._avg.value || 0,
           ratingCount: ratingAvg._count.value,
           purchases: purchaseCount,
+          favorites: favoriteCount,
         },
       };
     })
@@ -96,7 +148,7 @@ export const getAllCourses = async (page: number = 1, limit: number = 10) => {
   };
 };
 
-export const getCourseById = async (id: string) => {
+export const getCourseById = async (id: string, userId?: string) => {
   const course = await prisma.course.findUnique({
     where: { id },
     include: {
@@ -110,8 +162,7 @@ export const getCourseById = async (id: string) => {
     throw new AppError('Course not found', 404);
   }
 
-
-  const [comments, likes, ratingAvg] = await Promise.all([
+  const [comments, likes, ratingAvg, favoriteCount] = await Promise.all([
     prisma.comment.findMany({
       where: { entityType: 'COURSE', entityId: id, parentId: null },
       include: {
@@ -129,16 +180,61 @@ export const getCourseById = async (id: string) => {
       _avg: { value: true },
       _count: { value: true },
     }),
+    prisma.favorite.count({ where: { entityType: 'COURSE', entityId: id } }),
   ]);
+
+  let isLiked = false;
+  let isFavorite = false;
+  let userRating: number | null = null;
+
+  if (userId) {
+    const [userLike, userFavorite, userRatingData] = await Promise.all([
+      prisma.like.findUnique({
+        where: {
+          entityType_entityId_userId: {
+            entityType: 'COURSE',
+            entityId: id,
+            userId,
+          },
+        },
+      }),
+      prisma.favorite.findUnique({
+        where: {
+          entityType_entityId_userId: {
+            entityType: 'COURSE',
+            entityId: id,
+            userId,
+          },
+        },
+      }),
+      prisma.rating.findUnique({
+        where: {
+          entityType_entityId_userId: {
+            entityType: 'COURSE',
+            entityId: id,
+            userId,
+          },
+        },
+      }),
+    ]);
+
+    isLiked = userLike?.type === 'LIKE';
+    isFavorite = !!userFavorite;
+    userRating = userRatingData?.value || null;
+  }
 
   return {
     ...course,
     comments,
+    isLiked,
+    isFavorite,
+    userRating,
     stats: {
       likes,
       rating: ratingAvg._avg.value || 0,
       ratingCount: ratingAvg._count.value,
       commentCount: comments.length,
+      favorites: favoriteCount,
     },
   };
 };
@@ -184,6 +280,7 @@ export const deleteCourse = async (id: string) => {
     prisma.comment.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
     prisma.like.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
     prisma.rating.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
+    prisma.favorite.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
     prisma.coursePurchase.deleteMany({ where: { courseId: id } }),
     prisma.course.delete({ where: { id } }),
   ]);
@@ -273,14 +370,19 @@ export const toggleLike = async (
   if (existing) {
     if (existing.type === type) {
       await prisma.like.delete({ where: { id: existing.id } });
-      return { message: `${type} removed`, action: 'removed' };
+      return { message: `${type} removed`, action: 'removed', isLiked: false };
     }
 
     const updated = await prisma.like.update({
       where: { id: existing.id },
       data: { type },
     });
-    return { message: `Changed to ${type}`, action: 'updated', data: updated };
+    return {
+      message: `Changed to ${type}`,
+      action: 'updated',
+      isLiked: type === 'LIKE',
+      data: updated,
+    };
   }
 
   const like = await prisma.like.create({
@@ -292,7 +394,77 @@ export const toggleLike = async (
     },
   });
 
-  return { message: `${type} added`, action: 'created', data: like };
+  return {
+    message: `${type} added`,
+    action: 'created',
+    isLiked: type === 'LIKE',
+    data: like,
+  };
+};
+
+// ==================== FAVORITE ====================
+
+export const toggleFavorite = async (courseId: string, userId: string) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) {
+    throw new AppError('Course not found', 404);
+  }
+
+  const existing = await prisma.favorite.findUnique({
+    where: {
+      entityType_entityId_userId: {
+        entityType: 'COURSE',
+        entityId: courseId,
+        userId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.favorite.delete({ where: { id: existing.id } });
+    return { message: 'Removed from favorites', action: 'removed', isFavorite: false };
+  }
+
+  const favorite = await prisma.favorite.create({
+    data: {
+      entityType: 'COURSE',
+      entityId: courseId,
+      userId,
+    },
+  });
+
+  return {
+    message: 'Added to favorites',
+    action: 'created',
+    isFavorite: true,
+    data: favorite,
+  };
+};
+
+export const getMyFavorites = async (userId: string) => {
+  const favorites = await prisma.favorite.findMany({
+    where: {
+      userId,
+      entityType: 'COURSE',
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const courseIds = favorites.map((f) => f.entityId);
+
+  const courses = await prisma.course.findMany({
+    where: {
+      id: { in: courseIds },
+      isPublished: true,
+    },
+    include: {
+      author: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  return courses;
 };
 
 // ==================== RATING ====================
@@ -365,7 +537,6 @@ export const purchaseCourse = async (courseId: string, userId: string) => {
     throw new AppError('You already purchased this course', 409);
   }
 
-
   const wallet = await prisma.wallet.findUnique({
     where: { userId },
   });
@@ -374,18 +545,15 @@ export const purchaseCourse = async (courseId: string, userId: string) => {
     throw new AppError('Wallet not found. Please charge your wallet first.', 400);
   }
 
-
   if (wallet.balance < course.price) {
     throw new AppError('Insufficient balance', 400);
   }
 
   const result = await prisma.$transaction(async (tx) => {
-
     const updatedWallet = await tx.wallet.update({
       where: { id: wallet.id },
       data: { balance: { decrement: course.price } },
     });
-
 
     const purchase = await tx.coursePurchase.create({
       data: {
@@ -395,7 +563,6 @@ export const purchaseCourse = async (courseId: string, userId: string) => {
         status: 'PENDING',
       },
     });
-
 
     const transaction = await tx.transaction.create({
       data: {
@@ -430,7 +597,6 @@ export const approvePurchase = async (purchaseId: string, status: 'APPROVED' | '
     throw new AppError('Purchase already processed', 400);
   }
 
-
   if (status === 'REJECTED') {
     const wallet = await prisma.wallet.findUnique({
       where: { userId: purchase.userId },
@@ -441,12 +607,10 @@ export const approvePurchase = async (purchaseId: string, status: 'APPROVED' | '
     }
 
     await prisma.$transaction([
-
       prisma.wallet.update({
         where: { id: wallet.id },
         data: { balance: { increment: purchase.price } },
       }),
-
       prisma.transaction.create({
         data: {
           walletId: wallet.id,
@@ -457,14 +621,12 @@ export const approvePurchase = async (purchaseId: string, status: 'APPROVED' | '
           refId: purchase.id,
         },
       }),
-
       prisma.coursePurchase.update({
         where: { id: purchaseId },
         data: { status },
       }),
     ]);
   } else {
-
     await prisma.coursePurchase.update({
       where: { id: purchaseId },
       data: { status },

@@ -27,7 +27,6 @@ export const createCourse = async (
       throw new AppError('Price must be a positive number', 400);
     }
 
-    // پردازش عکس با Sharp
     let imageUrl: string | undefined;
     if (req.file) {
       const processedPath = await processImage(req.file.path, {
@@ -68,8 +67,9 @@ export const getAllCourses = async (
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const userId = req.user?.id;  // ← جدید
 
-    const result = await courseService.getAllCourses(page, limit);
+    const result = await courseService.getAllCourses(page, limit, userId);
 
     res.status(200).json({
       success: true,
@@ -89,7 +89,9 @@ export const getCourseById = async (
 ): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const course = await courseService.getCourseById(id);
+    const userId = req.user?.id;
+
+    const course = await courseService.getCourseById(id, userId);
 
     res.status(200).json({
       success: true,
@@ -224,6 +226,7 @@ export const toggleLike = async (
       success: true,
       message: result.message,
       action: result.action,
+      isLiked: result.isLiked,
       data: result.data,
     });
   } catch (error) {
@@ -339,7 +342,7 @@ export const getMyPurchases = async (
 // ==================== GET PENDING PURCHASES (ADMIN) ====================
 
 export const getPendingPurchases = async (
-  req: AuthRequest,
+  _req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -349,6 +352,57 @@ export const getPendingPurchases = async (
     res.status(200).json({
       success: true,
       data: purchases,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== TOGGLE FAVORITE ====================
+
+export const toggleFavorite = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const id = req.params.id as string;
+
+    const result = await courseService.toggleFavorite(id, req.user.id);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      action: result.action,
+      isFavorite: result.isFavorite,
+      data: result.data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== GET MY FAVORITES ====================
+
+export const getMyFavorites = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const favorites = await courseService.getMyFavorites(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: favorites,
     });
   } catch (error) {
     next(error);

@@ -36,7 +36,11 @@ export const createNews = async (data: CreateNewsInput) => {
   return news;
 };
 
-export const getAllNews = async (page: number = 1, limit: number = 10) => {
+export const getAllNews = async (
+  page: number = 1,
+  limit: number = 10,
+  userId?: string
+) => {
   const skip = (page - 1) * limit;
 
   const [news, total] = await Promise.all([
@@ -53,7 +57,6 @@ export const getAllNews = async (page: number = 1, limit: number = 10) => {
     prisma.news.count(),
   ]);
 
-
   const newsWithStats = await Promise.all(
     news.map(async (item) => {
       const [commentCount, likeCount, dislikeCount, ratingAvg] = await Promise.all([
@@ -67,8 +70,41 @@ export const getAllNews = async (page: number = 1, limit: number = 10) => {
         }),
       ]);
 
+      // ==================== isLiked و userRating ====================
+
+      let isLiked = false;
+      let userRating: number | null = null;
+
+      if (userId) {
+        const [userLike, userRatingData] = await Promise.all([
+          prisma.like.findUnique({
+            where: {
+              entityType_entityId_userId: {
+                entityType: 'NEWS',
+                entityId: item.id,
+                userId,
+              },
+            },
+          }),
+          prisma.rating.findUnique({
+            where: {
+              entityType_entityId_userId: {
+                entityType: 'NEWS',
+                entityId: item.id,
+                userId,
+              },
+            },
+          }),
+        ]);
+
+        isLiked = userLike?.type === 'LIKE';
+        userRating = userRatingData?.value || null;
+      }
+
       return {
         ...item,
+        isLiked,
+        userRating,
         stats: {
           comments: commentCount,
           likes: likeCount,
@@ -91,7 +127,7 @@ export const getAllNews = async (page: number = 1, limit: number = 10) => {
   };
 };
 
-export const getNewsById = async (id: string) => {
+export const getNewsById = async (id: string, userId?: string) => {
   const news = await prisma.news.findUnique({
     where: { id },
     include: {
@@ -128,9 +164,42 @@ export const getNewsById = async (id: string) => {
     }),
   ]);
 
+  // ==================== isLiked و userRating ====================
+
+  let isLiked = false;
+  let userRating: number | null = null;
+
+  if (userId) {
+    const [userLike, userRatingData] = await Promise.all([
+      prisma.like.findUnique({
+        where: {
+          entityType_entityId_userId: {
+            entityType: 'NEWS',
+            entityId: id,
+            userId,
+          },
+        },
+      }),
+      prisma.rating.findUnique({
+        where: {
+          entityType_entityId_userId: {
+            entityType: 'NEWS',
+            entityId: id,
+            userId,
+          },
+        },
+      }),
+    ]);
+
+    isLiked = userLike?.type === 'LIKE';
+    userRating = userRatingData?.value || null;
+  }
+
   return {
     ...news,
     comments,
+    isLiked,
+    userRating,
     stats: {
       likes,
       dislikes,
@@ -175,7 +244,6 @@ export const deleteNews = async (id: string) => {
   if (!existingNews) {
     throw new AppError('News not found', 404);
   }
-
 
   await prisma.$transaction([
     prisma.comment.deleteMany({ where: { entityType: 'NEWS', entityId: id } }),
@@ -271,14 +339,19 @@ export const toggleLike = async (
   if (existing) {
     if (existing.type === type) {
       await prisma.like.delete({ where: { id: existing.id } });
-      return { message: `${type} removed`, action: 'removed' };
+      return { message: `${type} removed`, action: 'removed', isLiked: false };
     }
 
     const updated = await prisma.like.update({
       where: { id: existing.id },
       data: { type },
     });
-    return { message: `Changed to ${type}`, action: 'updated', data: updated };
+    return {
+      message: `Changed to ${type}`,
+      action: 'updated',
+      isLiked: type === 'LIKE',
+      data: updated,
+    };
   }
 
   const like = await prisma.like.create({
@@ -290,7 +363,12 @@ export const toggleLike = async (
     },
   });
 
-  return { message: `${type} added`, action: 'created', data: like };
+  return {
+    message: `${type} added`,
+    action: 'created',
+    isLiked: type === 'LIKE',
+    data: like,
+  };
 };
 
 // ==================== RATING ====================
