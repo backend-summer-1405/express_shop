@@ -8,9 +8,20 @@ describe('News API', () => {
   let newsId: string;
 
   beforeAll(async () => {
+    // ==================== پاک‌سازی کاربران تست ====================
+
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          in: ['admin@test.com', 'user@test.com'],
+        },
+      },
+    });
+
     const bcrypt = await import('bcrypt');
 
-    // ساخت ادمین
+    // ==================== ساخت ادمین ====================
+
     await prisma.user.create({
       data: {
         email: 'admin@test.com',
@@ -20,7 +31,8 @@ describe('News API', () => {
       },
     });
 
-    // ساخت کاربر عادی
+    // ==================== ساخت کاربر عادی ====================
+
     await prisma.user.create({
       data: {
         email: 'user@test.com',
@@ -30,18 +42,24 @@ describe('News API', () => {
       },
     });
 
-    // گرفتن توکن ادمین
+    // ==================== گرفتن توکن ادمین ====================
+
     const adminLogin = await request(app)
-      .post('/api/users/login')
+      .post('/api/auth/login')
       .send({ email: 'admin@test.com', password: 'password123' });
+
     adminToken = adminLogin.body.data.token;
 
-    // گرفتن توکن کاربر
+    // ==================== گرفتن توکن کاربر ====================
+
     const userLogin = await request(app)
-      .post('/api/users/login')
+      .post('/api/auth/login')
       .send({ email: 'user@test.com', password: 'password123' });
+
     userToken = userLogin.body.data.token;
   });
+
+  // ==================== POST /api/news ====================
 
   describe('POST /api/news', () => {
     it('should create news as admin', async () => {
@@ -72,6 +90,8 @@ describe('News API', () => {
     });
   });
 
+  // ==================== GET /api/news ====================
+
   describe('GET /api/news', () => {
     it('should return list of news', async () => {
       const response = await request(app)
@@ -83,6 +103,8 @@ describe('News API', () => {
     });
   });
 
+  // ==================== GET /api/news/:id ====================
+
   describe('GET /api/news/:id', () => {
     it('should return news by id', async () => {
       const response = await request(app)
@@ -93,6 +115,8 @@ describe('News API', () => {
       expect(response.body.data.id).toBe(newsId);
     });
   });
+
+  // ==================== POST /api/news/:id/comments ====================
 
   describe('POST /api/news/:id/comments', () => {
     it('should add comment to news', async () => {
@@ -107,6 +131,8 @@ describe('News API', () => {
     });
   });
 
+  // ==================== POST /api/news/:id/like ====================
+
   describe('POST /api/news/:id/like', () => {
     it('should toggle like on news', async () => {
       const response = await request(app)
@@ -119,6 +145,8 @@ describe('News API', () => {
     });
   });
 
+  // ==================== POST /api/news/:id/rate ====================
+
   describe('POST /api/news/:id/rate', () => {
     it('should add rating to news', async () => {
       const response = await request(app)
@@ -130,6 +158,8 @@ describe('News API', () => {
       expect(response.body.success).toBe(true);
     });
   });
+
+  // ==================== DELETE /api/news/:id ====================
 
   describe('DELETE /api/news/:id', () => {
     it('should delete news as admin', async () => {

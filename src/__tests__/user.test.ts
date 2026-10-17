@@ -12,11 +12,13 @@ beforeEach(async () => {
   });
 });
 
-describe('User API', () => {
-  describe('POST /api/users/register', () => {
+describe('Auth & User API', () => {
+  // ==================== AUTH TESTS ====================
+
+  describe('POST /api/auth/register', () => {
     it('should register a new user', async () => {
       const response = await request(app)
-        .post('/api/users/register')
+        .post('/api/auth/register')
         .send({
           email: 'test@example.com',
           password: 'password123',
@@ -40,7 +42,7 @@ describe('User API', () => {
       });
 
       const response = await request(app)
-        .post('/api/users/register')
+        .post('/api/auth/register')
         .send({
           email: 'test@example.com',
           password: 'password123',
@@ -52,7 +54,7 @@ describe('User API', () => {
 
     it('should return 400 for invalid email', async () => {
       const response = await request(app)
-        .post('/api/users/register')
+        .post('/api/auth/register')
         .send({
           email: 'invalid-email',
           password: 'password123',
@@ -63,7 +65,7 @@ describe('User API', () => {
     });
   });
 
-  describe('POST /api/users/login', () => {
+  describe('POST /api/auth/login', () => {
     it('should login with valid credentials', async () => {
       const bcrypt = await import('bcrypt');
       await prisma.user.create({
@@ -75,7 +77,7 @@ describe('User API', () => {
       });
 
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
           email: 'test@example.com',
           password: 'password123',
@@ -88,7 +90,7 @@ describe('User API', () => {
 
     it('should return 401 for invalid credentials', async () => {
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
           email: 'nonexistent@example.com',
           password: 'password123',
@@ -98,6 +100,8 @@ describe('User API', () => {
       expect(response.body.success).toBe(false);
     });
   });
+
+  // ==================== USER TESTS ====================
 
   describe('GET /api/users/me', () => {
     it('should return 401 without token', async () => {
@@ -119,7 +123,7 @@ describe('User API', () => {
       });
 
       const loginResponse = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
           email: 'test@example.com',
           password: 'password123',

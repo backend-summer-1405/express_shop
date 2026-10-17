@@ -6,6 +6,7 @@ import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
+import authRoutes from './modules/auth/auth.routes';  // ← جدید
 import userRoutes from './modules/user/user.routes';
 import newsRoutes from './modules/news/news.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
@@ -57,8 +58,10 @@ app.get('/', (_req: Request, res: Response) => {
     version: '1.0.0',
   });
 });
+
 // ==================== ROUTES ====================
 
+app.use('/api/auth', authRoutes);       // ← جدید
 app.use('/api/users', userRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/wallet', walletRoutes);
