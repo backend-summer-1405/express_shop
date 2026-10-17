@@ -75,6 +75,7 @@ model User {
   comments     Comment[]
   likes        Like[]
   ratings      Rating[]
+  favorites    Favorite[]
   purchases    CoursePurchase[]
   podcastPlays PodcastPlay[]
 
@@ -267,4 +268,20 @@ model Rating {
   @@unique([entityType, entityId, userId])
   @@index([entityType, entityId])
   @@map("ratings")
+}
+
+// ==================== FAVORITE MODEL ====================
+
+model Favorite {
+  id         String     @id @default(uuid())
+  entityType EntityType
+  entityId   String
+  userId     String
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entityType, entityId, userId])
+  @@index([entityType, entityId])
+  @@map("favorites")
 }
