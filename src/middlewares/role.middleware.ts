@@ -2,8 +2,10 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.middleware';
 import { AppError } from './errorHandler';
 
+// ==================== AUTHORIZE ====================
+
 export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+  return (req: AuthRequest, _res: Response, next: NextFunction): void => {
     try {
       if (!req.user) {
         throw new AppError('Authentication required', 401);
@@ -23,8 +25,10 @@ export const authorize = (...roles: string[]) => {
   };
 };
 
+// ==================== SHORTCUTS ====================
 
 export const adminOnly = authorize('ADMIN');
 
-
 export const userOrAdmin = authorize('USER', 'ADMIN');
+
+export const teacherOrAdmin = authorize('TEACHER', 'ADMIN');

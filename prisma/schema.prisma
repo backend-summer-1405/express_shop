@@ -21,6 +21,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  TEACHER
 }
 
 enum EntityType {

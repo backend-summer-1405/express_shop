@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import * as courseController from './course.controller';
 import { authenticate, optionalAuth } from '../../middlewares/auth.middleware';
-import { adminOnly } from '../../middlewares/role.middleware';
+import { adminOnly, teacherOrAdmin } from '../../middlewares/role.middleware';
 import { uploadImage } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import {
   addCommentSchema,
   toggleLikeSchema,
   addRatingSchema,
-  approvePurchaseSchema,
 } from './course.validation';
 
 const router = Router();
@@ -72,13 +71,13 @@ router.get('/my-favorites', authenticate, courseController.getMyFavorites);
  */
 router.get('/:id', optionalAuth, courseController.getCourseById);
 
-// ==================== ADMIN ROUTES ====================
+// ==================== TEACHER & ADMIN ROUTES ====================
 
 /**
  * @swagger
  * /api/courses:
  *   post:
- *     summary: Create a new course (Admin only)
+ *     summary: Create a new course (Admin or Teacher)
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []
@@ -105,12 +104,12 @@ router.get('/:id', optionalAuth, courseController.getCourseById);
  *       201:
  *         description: Course created
  *       403:
- *         description: Admin only
+ *         description: Admin or Teacher only
  */
 router.post(
   '/',
   authenticate,
-  adminOnly,
+  teacherOrAdmin,
   uploadImage.single('image'),
   courseController.createCourse
 );
@@ -119,7 +118,7 @@ router.post(
  * @swagger
  * /api/courses/{id}:
  *   put:
- *     summary: Update course (Admin only)
+ *     summary: Update course (Admin or Teacher)
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []
@@ -148,13 +147,13 @@ router.post(
  *       200:
  *         description: Course updated
  */
-router.put('/:id', authenticate, adminOnly, courseController.updateCourse);
+router.put('/:id', authenticate, teacherOrAdmin, courseController.updateCourse);
 
 /**
  * @swagger
  * /api/courses/{id}:
  *   delete:
- *     summary: Delete course (Admin only)
+ *     summary: Delete course (Admin or Teacher)
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []
@@ -168,101 +167,7 @@ router.put('/:id', authenticate, adminOnly, courseController.updateCourse);
  *       200:
  *         description: Course deleted
  */
-router.delete('/:id', authenticate, adminOnly, courseController.deleteCourse);
-
-// ==================== PURCHASE ROUTES ====================
-
-/**
- * @swagger
- * /api/courses/{id}/buy:
- *   post:
- *     summary: Purchase a course from wallet
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       201:
- *         description: Course purchased (pending admin approval)
- *       400:
- *         description: Insufficient balance or already purchased
- *       404:
- *         description: Course not found
- */
-router.post('/:id/buy', authenticate, courseController.purchaseCourse);
-
-/**
- * @swagger
- * /api/courses/my-purchases:
- *   get:
- *     summary: Get current user's purchases
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of purchases
- */
-router.get('/my-purchases', authenticate, courseController.getMyPurchases);
-
-/**
- * @swagger
- * /api/courses/pending-purchases:
- *   get:
- *     summary: Get all pending purchases (Admin only)
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of pending purchases
- *       403:
- *         description: Admin only
- */
-router.get('/pending-purchases', authenticate, adminOnly, courseController.getPendingPurchases);
-
-/**
- * @swagger
- * /api/courses/purchases/{purchaseId}/approve:
- *   post:
- *     summary: Approve or reject a purchase (Admin only)
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: purchaseId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [APPROVED, REJECTED]
- *     responses:
- *       200:
- *         description: Purchase processed
- */
-router.post(
-  '/purchases/:purchaseId/approve',
-  authenticate,
-  adminOnly,
-  validate(approvePurchaseSchema),
-  courseController.approvePurchase
-);
+router.delete('/:id', authenticate, teacherOrAdmin, courseController.deleteCourse);
 
 // ==================== COMMENT ROUTES ====================
 

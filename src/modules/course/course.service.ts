@@ -64,7 +64,7 @@ export const getAllCourses = async (
 
   const coursesWithStats = await Promise.all(
     courses.map(async (course) => {
-      const [commentCount, likeCount, ratingAvg, purchaseCount, favoriteCount] =
+      const [commentCount, likeCount, ratingAvg, favoriteCount] =
         await Promise.all([
           prisma.comment.count({ where: { entityType: 'COURSE', entityId: course.id } }),
           prisma.like.count({
@@ -75,7 +75,6 @@ export const getAllCourses = async (
             _avg: { value: true },
             _count: { value: true },
           }),
-          prisma.coursePurchase.count({ where: { courseId: course.id, status: 'APPROVED' } }),
           prisma.favorite.count({ where: { entityType: 'COURSE', entityId: course.id } }),
         ]);
 
@@ -130,7 +129,6 @@ export const getAllCourses = async (
           likes: likeCount,
           rating: ratingAvg._avg.value || 0,
           ratingCount: ratingAvg._count.value,
-          purchases: purchaseCount,
           favorites: favoriteCount,
         },
       };
@@ -507,171 +505,4 @@ export const addRating = async (courseId: string, userId: string, value: number)
   });
 
   return { message: 'Rating added', data: rating };
-};
-
-// ==================== PURCHASE COURSE ====================
-
-export const purchaseCourse = async (courseId: string, userId: string) => {
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
-  });
-
-  if (!course) {
-    throw new AppError('Course not found', 404);
-  }
-
-  if (!course.isPublished) {
-    throw new AppError('Course is not published yet', 400);
-  }
-
-  const existingPurchase = await prisma.coursePurchase.findUnique({
-    where: {
-      userId_courseId: {
-        userId,
-        courseId,
-      },
-    },
-  });
-
-  if (existingPurchase) {
-    throw new AppError('You already purchased this course', 409);
-  }
-
-  const wallet = await prisma.wallet.findUnique({
-    where: { userId },
-  });
-
-  if (!wallet) {
-    throw new AppError('Wallet not found. Please charge your wallet first.', 400);
-  }
-
-  if (wallet.balance < course.price) {
-    throw new AppError('Insufficient balance', 400);
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    const updatedWallet = await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { balance: { decrement: course.price } },
-    });
-
-    const purchase = await tx.coursePurchase.create({
-      data: {
-        userId,
-        courseId,
-        price: course.price,
-        status: 'PENDING',
-      },
-    });
-
-    const transaction = await tx.transaction.create({
-      data: {
-        walletId: wallet.id,
-        amount: course.price,
-        type: 'PURCHASE',
-        status: 'SUCCESS',
-        description: `Purchase course: ${course.title}`,
-        refId: purchase.id,
-      },
-    });
-
-    return { wallet: updatedWallet, purchase, transaction };
-  });
-
-  return result;
-};
-
-// ==================== APPROVE PURCHASE (ADMIN) ====================
-
-export const approvePurchase = async (purchaseId: string, status: 'APPROVED' | 'REJECTED') => {
-  const purchase = await prisma.coursePurchase.findUnique({
-    where: { id: purchaseId },
-    include: { course: true, user: true },
-  });
-
-  if (!purchase) {
-    throw new AppError('Purchase not found', 404);
-  }
-
-  if (purchase.status !== 'PENDING') {
-    throw new AppError('Purchase already processed', 400);
-  }
-
-  if (status === 'REJECTED') {
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId: purchase.userId },
-    });
-
-    if (!wallet) {
-      throw new AppError('Wallet not found', 404);
-    }
-
-    await prisma.$transaction([
-      prisma.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: purchase.price } },
-      }),
-      prisma.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: purchase.price,
-          type: 'REFUND',
-          status: 'SUCCESS',
-          description: `Refund for rejected course: ${purchase.course.title}`,
-          refId: purchase.id,
-        },
-      }),
-      prisma.coursePurchase.update({
-        where: { id: purchaseId },
-        data: { status },
-      }),
-    ]);
-  } else {
-    await prisma.coursePurchase.update({
-      where: { id: purchaseId },
-      data: { status },
-    });
-  }
-
-  return { message: `Purchase ${status.toLowerCase()} successfully` };
-};
-
-// ==================== GET MY PURCHASES ====================
-
-export const getMyPurchases = async (userId: string) => {
-  const purchases = await prisma.coursePurchase.findMany({
-    where: { userId },
-    include: {
-      course: {
-        select: {
-          id: true,
-          title: true,
-          image: true,
-          price: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return purchases;
-};
-
-// ==================== GET PENDING PURCHASES (ADMIN) ====================
-
-export const getPendingPurchases = async () => {
-  const purchases = await prisma.coursePurchase.findMany({
-    where: { status: 'PENDING' },
-    include: {
-      user: {
-        select: { id: true, name: true, email: true },
-      },
-      course: {
-        select: { id: true, title: true, price: true },
-      },
-    },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  return purchases;
 };

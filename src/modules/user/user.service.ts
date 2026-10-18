@@ -1,20 +1,7 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
-
-// ==================== TYPES ====================
-
-interface CreateUserInput {
-  email: string;
-  password: string;
-  name?: string;
-}
-
-interface UpdateUserInput {
-  email?: string;
-  password?: string;
-  name?: string;
-}
+import { CreateUserInput, UpdateUserInput } from './user.types';
 
 // ==================== CREATE USER ====================
 
@@ -263,4 +250,29 @@ export const addProfileImage = async (userId: string, imageUrl: string) => {
   });
 
   return image;
+};
+
+// ==================== CHANGE USER ROLE ====================
+
+export const changeUserRole = async (id: string, role: 'USER' | 'TEACHER') => {
+  const existingUser = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!existingUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  const user = await prisma.user.update({
+    where: { id },
+    data: { role },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+    },
+  });
+
+  return user;
 };

@@ -4,7 +4,7 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { adminOnly } from '../../middlewares/role.middleware';
 import { uploadMultipleImages } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
-import { updateProfileSchema } from './user.validation';
+import { updateProfileSchema, changeRoleSchema } from './user.validation';
 
 const router = Router();
 
@@ -122,5 +122,45 @@ router.post(
  *         description: Access denied (Admin only)
  */
 router.get('/', authenticate, adminOnly, userController.getAllUsers);
+
+/**
+ * @swagger
+ * /api/users/{id}/role:
+ *   patch:
+ *     summary: Change user role (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - role
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [USER, TEACHER]
+ *     responses:
+ *       200:
+ *         description: User role updated
+ *       403:
+ *         description: Admin only
+ */
+router.patch(
+  '/:id/role',
+  authenticate,
+  adminOnly,
+  validate(changeRoleSchema),
+  userController.changeUserRole
+);
 
 export default router;

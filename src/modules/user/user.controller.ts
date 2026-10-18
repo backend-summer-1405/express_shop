@@ -4,6 +4,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/errorHandler';
 import path from 'path';
 import { processImage } from '../../utils/imageProcessor';
+import { CreateUserInput, UpdateUserInput } from './user.types';
 
 // ==================== GET ME ====================
 
@@ -117,6 +118,30 @@ export const getAllUsers = async (
     res.status(200).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== CHANGE USER ROLE (ADMIN) ====================
+
+export const changeUserRole = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { role } = req.body;
+
+
+    const user = await userService.changeUserRole(id, role);
+
+    res.status(200).json({
+      success: true,
+      message: 'User role updated successfully',
+      data: user,
     });
   } catch (error) {
     next(error);

@@ -67,7 +67,7 @@ export const getAllCourses = async (
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    const userId = req.user?.id;  // ← جدید
+    const userId = req.user?.id;
 
     const result = await courseService.getAllCourses(page, limit, userId);
 
@@ -110,8 +110,18 @@ export const updateCourse = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
     const id = req.params.id as string;
     const { title, description, price, isPublished } = req.body;
+
+    const existingCourse = await courseService.getCourseById(id);
+
+    if (req.user.role !== 'ADMIN' && existingCourse.authorId !== req.user.id) {
+      throw new AppError('You can only update your own courses', 403);
+    }
 
     const course = await courseService.updateCourse(id, {
       title,
@@ -138,7 +148,20 @@ export const deleteCourse = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
     const id = req.params.id as string;
+
+
+    const existingCourse = await courseService.getCourseById(id);
+
+
+    if (req.user.role !== 'ADMIN' && existingCourse.authorId !== req.user.id) {
+      throw new AppError('You can only delete your own courses', 403);
+    }
+
     const result = await courseService.deleteCourse(id);
 
     res.status(200).json({
@@ -259,99 +282,6 @@ export const addRating = async (
       success: true,
       message: result.message,
       data: result.data,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== PURCHASE COURSE ====================
-
-export const purchaseCourse = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new AppError('Authentication required', 401);
-    }
-
-    const courseId = req.params.id as string;
-    const result = await courseService.purchaseCourse(courseId, req.user.id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Course purchased successfully. Waiting for admin approval.',
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== APPROVE PURCHASE (ADMIN) ====================
-
-export const approvePurchase = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const purchaseId = req.params.purchaseId as string;
-    const { status } = req.body;
-
-    if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
-      throw new AppError('Status must be APPROVED or REJECTED', 400);
-    }
-
-    const result = await courseService.approvePurchase(purchaseId, status);
-
-    res.status(200).json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== GET MY PURCHASES ====================
-
-export const getMyPurchases = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new AppError('Authentication required', 401);
-    }
-
-    const purchases = await courseService.getMyPurchases(req.user.id);
-
-    res.status(200).json({
-      success: true,
-      data: purchases,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== GET PENDING PURCHASES (ADMIN) ====================
-
-export const getPendingPurchases = async (
-  _req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const purchases = await courseService.getPendingPurchases();
-
-    res.status(200).json({
-      success: true,
-      data: purchases,
     });
   } catch (error) {
     next(error);
