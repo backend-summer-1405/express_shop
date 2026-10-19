@@ -106,3 +106,30 @@ router.post(
 );
 
 export default router;
+
+
+/**
+ * @swagger
+ * /api/users/me/images/{imageId}:
+ *   delete:
+ *     summary: Delete a profile image
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: imageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Image deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: You can only delete your own images
+ *       404:
+ *         description: Image not found
+ */
+router.delete('/me/images/:imageId', authenticate, userController.deleteProfileImage);

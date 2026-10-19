@@ -123,3 +123,28 @@ export const deleteAccount = async (
     next(error);
   }
 };
+
+// ==================== DELETE PROFILE IMAGE ====================
+
+export const deleteProfileImage = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const imageId = req.params.imageId as string;
+
+    const result = await userService.deleteProfileImage(req.user.id, imageId);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

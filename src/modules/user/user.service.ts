@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
 import { CreateUserInput, UpdateUserInput } from './user.types';
+import fs from 'fs';
+import path from 'path';
 
 // ==================== CREATE USER ====================
 
@@ -218,4 +220,37 @@ export const addProfileImage = async (userId: string, imageUrl: string) => {
   });
 
   return image;
+};
+
+
+// ==================== DELETE PROFILE IMAGE ====================
+
+export const deleteProfileImage = async (userId: string, imageId: string) => {
+  const image = await prisma.profileImage.findUnique({
+    where: { id: imageId },
+    include: {
+      profile: {
+        select: { userId: true },
+      },
+    },
+  });
+
+  if (!image) {
+    throw new AppError('Image not found', 404);
+  }
+
+  if (image.profile.userId !== userId) {
+    throw new AppError('You can only delete your own images', 403);
+  }
+
+  const filePath = path.join(process.cwd(), image.url);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  await prisma.profileImage.delete({
+    where: { id: imageId },
+  });
+
+  return { message: 'Profile image deleted successfully' };
 };
