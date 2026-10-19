@@ -81,38 +81,6 @@ export const getUserByEmail = async (email: string) => {
   return user;
 };
 
-// ==================== GET ALL USERS ====================
-
-export const getAllUsers = async (page: number = 1, limit: number = 10) => {
-  const skip = (page - 1) * limit;
-
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.user.count(),
-  ]);
-
-  return {
-    users,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-};
-
 // ==================== UPDATE USER ====================
 
 export const updateUser = async (id: string, data: UpdateUserInput) => {
@@ -166,9 +134,9 @@ export const updateUser = async (id: string, data: UpdateUserInput) => {
   return user;
 };
 
-// ==================== DELETE USER ====================
+// ==================== DELETE ACCOUNT (SELF) ====================
 
-export const deleteUser = async (id: string) => {
+export const deleteAccount = async (id: string) => {
   const existingUser = await prisma.user.findUnique({
     where: { id },
   });
@@ -181,7 +149,7 @@ export const deleteUser = async (id: string) => {
     where: { id },
   });
 
-  return { message: 'User deleted successfully' };
+  return { message: 'Your account has been deleted successfully' };
 };
 
 // ==================== CHANGE PASSWORD ====================
@@ -250,29 +218,4 @@ export const addProfileImage = async (userId: string, imageUrl: string) => {
   });
 
   return image;
-};
-
-// ==================== CHANGE USER ROLE ====================
-
-export const changeUserRole = async (id: string, role: 'USER' | 'TEACHER') => {
-  const existingUser = await prisma.user.findUnique({
-    where: { id },
-  });
-
-  if (!existingUser) {
-    throw new AppError('User not found', 404);
-  }
-
-  const user = await prisma.user.update({
-    where: { id },
-    data: { role },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-    },
-  });
-
-  return user;
 };

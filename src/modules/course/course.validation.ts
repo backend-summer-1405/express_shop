@@ -6,7 +6,7 @@ export const createCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(200),
     description: z.string().max(2000).optional(),
-    price: z.number().int().min(0, 'Price must be at least 0'),
+    price: z.coerce.number().int().min(0, 'Price must be at least 0'),
   }),
 });
 
@@ -16,8 +16,8 @@ export const updateCourseSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(200).optional(),
     description: z.string().max(2000).optional(),
-    price: z.number().int().min(0).optional(),
-    isPublished: z.boolean().optional(),
+    price: z.coerce.number().int().min(0).optional(),
+    isPublished: z.coerce.boolean().optional(),
   }),
 });
 
@@ -43,13 +43,5 @@ export const toggleLikeSchema = z.object({
 export const addRatingSchema = z.object({
   body: z.object({
     value: z.number().int().min(1, 'Rating must be at least 1').max(5, 'Rating must be at most 5'),
-  }),
-});
-
-// ==================== APPROVE PURCHASE SCHEMA ====================
-
-export const approvePurchaseSchema = z.object({
-  body: z.object({
-    status: z.enum(['APPROVED', 'REJECTED']),
   }),
 });

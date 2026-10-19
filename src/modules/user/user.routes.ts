@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import * as userController from './user.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
-import { adminOnly } from '../../middlewares/role.middleware';
 import { uploadMultipleImages } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
-import { updateProfileSchema, changeRoleSchema } from './user.validation';
+import { updateProfileSchema } from './user.validation';
 
 const router = Router();
 
-// ==================== PROTECTED ROUTES ====================
+// ==================== PROTECTED ROUTES (USER ONLY) ====================
 
 /**
  * @swagger
@@ -57,6 +56,22 @@ router.put('/me', authenticate, validate(updateProfileSchema), userController.up
 
 /**
  * @swagger
+ * /api/users/me:
+ *   delete:
+ *     summary: Delete current user account
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account deleted successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/me', authenticate, userController.deleteAccount);
+
+/**
+ * @swagger
  * /api/users/me/images:
  *   post:
  *     summary: Upload profile images (multiple)
@@ -88,79 +103,6 @@ router.post(
   authenticate,
   uploadMultipleImages,
   userController.uploadProfileImages
-);
-
-// ==================== ADMIN ROUTES ====================
-
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users (Admin only)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Number of users per page
- *     responses:
- *       200:
- *         description: List of users
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Access denied (Admin only)
- */
-router.get('/', authenticate, adminOnly, userController.getAllUsers);
-
-/**
- * @swagger
- * /api/users/{id}/role:
- *   patch:
- *     summary: Change user role (Admin only)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - role
- *             properties:
- *               role:
- *                 type: string
- *                 enum: [USER, TEACHER]
- *     responses:
- *       200:
- *         description: User role updated
- *       403:
- *         description: Admin only
- */
-router.patch(
-  '/:id/role',
-  authenticate,
-  adminOnly,
-  validate(changeRoleSchema),
-  userController.changeUserRole
 );
 
 export default router;

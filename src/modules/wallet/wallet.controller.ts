@@ -26,74 +26,6 @@ export const getWallet = async (
   }
 };
 
-// ==================== CHARGE WALLET ====================
-
-export const chargeWallet = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new AppError('Authentication required', 401);
-    }
-
-    const { amount, description } = req.body;
-
-    if (!amount || amount <= 0) {
-      throw new AppError('Amount must be greater than 0', 400);
-    }
-
-    const result = await walletService.chargeWallet(
-      req.user.id,
-      amount,
-      description
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Wallet charged successfully',
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== WITHDRAW WALLET ====================
-
-export const withdrawWallet = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new AppError('Authentication required', 401);
-    }
-
-    const { amount, description } = req.body;
-
-    if (!amount || amount <= 0) {
-      throw new AppError('Amount must be greater than 0', 400);
-    }
-
-    const result = await walletService.withdrawWallet(
-      req.user.id,
-      amount,
-      description
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Withdrawal successful',
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // ==================== GET TRANSACTIONS ====================
 
 export const getTransactions = async (
@@ -191,7 +123,6 @@ export const verifyCharge = async (
     if (!authority) {
       throw new AppError('Authority is required', 400);
     }
-
 
     if (status !== 'OK') {
       res.status(400).json({

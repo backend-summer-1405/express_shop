@@ -117,13 +117,7 @@ export const updateCourse = async (
     const id = req.params.id as string;
     const { title, description, price, isPublished } = req.body;
 
-    const existingCourse = await courseService.getCourseById(id);
-
-    if (req.user.role !== 'ADMIN' && existingCourse.authorId !== req.user.id) {
-      throw new AppError('You can only update your own courses', 403);
-    }
-
-    const course = await courseService.updateCourse(id, {
+    const course = await courseService.updateCourse(id, req.user.id, req.user.role, {
       title,
       description,
       price: price ? parseInt(price) : undefined,
@@ -154,15 +148,7 @@ export const deleteCourse = async (
 
     const id = req.params.id as string;
 
-
-    const existingCourse = await courseService.getCourseById(id);
-
-
-    if (req.user.role !== 'ADMIN' && existingCourse.authorId !== req.user.id) {
-      throw new AppError('You can only delete your own courses', 403);
-    }
-
-    const result = await courseService.deleteCourse(id);
+    const result = await courseService.deleteCourse(id, req.user.id, req.user.role);
 
     res.status(200).json({
       success: true,

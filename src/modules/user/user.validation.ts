@@ -9,13 +9,3 @@ export const updateProfileSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').optional(),
   }),
 });
-
-// ==================== CHANGE ROLE SCHEMA ====================
-
-export const changeRoleSchema = z.object({
-  body: z.object({
-    role: z.enum(['USER', 'TEACHER'], {
-      message: 'Role must be either USER or TEACHER',
-    }),
-  }),
-});

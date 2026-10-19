@@ -31,7 +31,6 @@ export const createPaymentRequest = async (
 ): Promise<PaymentRequestResult> => {
   const { amount, description, callbackUrl, email, mobile } = options;
 
-  // ساخت body
   const requestBody: any = {
     merchant_id: MERCHANT_ID,
     amount,
@@ -39,21 +38,14 @@ export const createPaymentRequest = async (
     description,
   };
 
-  // فقط اگه email یا mobile داری، metadata رو اضافه کن
   if (email || mobile) {
     requestBody.metadata = {};
     if (email) requestBody.metadata.email = email;
     if (mobile) requestBody.metadata.mobile = mobile;
   }
 
-  console.log('📤 Sending request to Zarinpal:');
-  console.log(JSON.stringify(requestBody, null, 2));
-
   try {
     const response = await axios.post(`${API_URL}/request.json`, requestBody);
-
-    console.log('📥 Zarinpal response:');
-    console.log(JSON.stringify(response.data, null, 2));
 
     const { data, errors } = response.data;
 
@@ -70,9 +62,6 @@ export const createPaymentRequest = async (
       url: `${BASE_URL}/pg/StartPay/${data.authority}`,
     };
   } catch (error: any) {
-    console.error('❌ Zarinpal PaymentRequest error:');
-    console.error('  Status:', error.response?.status);
-    console.error('  Data:', JSON.stringify(error.response?.data, null, 2));
     throw new Error(
       `Payment request failed: ${JSON.stringify(error.response?.data) || error.message}`
     );
@@ -112,7 +101,6 @@ export const verifyPayment = async (
       cardPan: data.card_pan || '',
     };
   } catch (error: any) {
-    console.error('❌ Zarinpal PaymentVerification error:', error.response?.data || error.message);
     throw new Error(
       `Payment verification failed: ${JSON.stringify(error.response?.data) || error.message}`
     );

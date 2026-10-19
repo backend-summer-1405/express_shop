@@ -4,7 +4,6 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/errorHandler';
 import path from 'path';
 import { processImage } from '../../utils/imageProcessor';
-import { CreateUserInput, UpdateUserInput } from './user.types';
 
 // ==================== GET ME ====================
 
@@ -102,46 +101,23 @@ export const uploadProfileImages = async (
   }
 };
 
-// ==================== GET ALL USERS (ADMIN) ====================
+// ==================== DELETE ACCOUNT (SELF) ====================
 
-export const getAllUsers = async (
+export const deleteAccount = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
 
-    const result = await userService.getAllUsers(page, limit);
-
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ==================== CHANGE USER ROLE (ADMIN) ====================
-
-export const changeUserRole = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const id = req.params.id as string;
-    const { role } = req.body;
-
-
-    const user = await userService.changeUserRole(id, role);
+    const result = await userService.deleteAccount(req.user.id);
 
     res.status(200).json({
       success: true,
-      message: 'User role updated successfully',
-      data: user,
+      message: result.message,
     });
   } catch (error) {
     next(error);

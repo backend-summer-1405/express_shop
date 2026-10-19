@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import * as courseController from './course.controller';
 import { authenticate, optionalAuth } from '../../middlewares/auth.middleware';
-import { adminOnly, teacherOrAdmin } from '../../middlewares/role.middleware';
+import { teacherOrAdmin } from '../../middlewares/role.middleware';
 import { uploadImage } from '../../middlewares/upload.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import {
   addCommentSchema,
   toggleLikeSchema,
   addRatingSchema,
+  createCourseSchema,
+  updateCourseSchema,
 } from './course.validation';
 
 const router = Router();
@@ -71,7 +73,7 @@ router.get('/my-favorites', authenticate, courseController.getMyFavorites);
  */
 router.get('/:id', optionalAuth, courseController.getCourseById);
 
-// ==================== TEACHER & ADMIN ROUTES ====================
+// ==================== TEACHER & ADMIN ROUTES (مدیریت دوره) ====================
 
 /**
  * @swagger
@@ -103,14 +105,13 @@ router.get('/:id', optionalAuth, courseController.getCourseById);
  *     responses:
  *       201:
  *         description: Course created
- *       403:
- *         description: Admin or Teacher only
  */
 router.post(
   '/',
   authenticate,
   teacherOrAdmin,
   uploadImage.single('image'),
+  validate(createCourseSchema),
   courseController.createCourse
 );
 
@@ -147,7 +148,13 @@ router.post(
  *       200:
  *         description: Course updated
  */
-router.put('/:id', authenticate, teacherOrAdmin, courseController.updateCourse);
+router.put(
+  '/:id',
+  authenticate,
+  teacherOrAdmin,
+  validate(updateCourseSchema),
+  courseController.updateCourse
+);
 
 /**
  * @swagger

@@ -19,7 +19,7 @@ interface UpdateCourseInput {
   isPublished?: boolean;
 }
 
-// ==================== CRUD COURSE ====================
+// ==================== CREATE COURSE ====================
 
 export const createCourse = async (data: CreateCourseInput) => {
   const course = await prisma.course.create({
@@ -39,6 +39,8 @@ export const createCourse = async (data: CreateCourseInput) => {
 
   return course;
 };
+
+// ==================== GET ALL COURSES ====================
 
 export const getAllCourses = async (
   page: number = 1,
@@ -78,7 +80,6 @@ export const getAllCourses = async (
           prisma.favorite.count({ where: { entityType: 'COURSE', entityId: course.id } }),
         ]);
 
-      // چک isLiked, isFavorite, userRating
       let isLiked = false;
       let isFavorite = false;
       let userRating: number | null = null;
@@ -145,6 +146,8 @@ export const getAllCourses = async (
     },
   };
 };
+
+// ==================== GET COURSE BY ID ====================
 
 export const getCourseById = async (id: string, userId?: string) => {
   const course = await prisma.course.findUnique({
@@ -237,17 +240,29 @@ export const getCourseById = async (id: string, userId?: string) => {
   };
 };
 
-export const updateCourse = async (id: string, data: UpdateCourseInput) => {
+// ==================== UPDATE COURSE (WITH OWNERSHIP CHECK) ====================
+
+export const updateCourse = async (
+  courseId: string,
+  teacherId: string,
+  teacherRole: string,
+  data: UpdateCourseInput
+) => {
   const existingCourse = await prisma.course.findUnique({
-    where: { id },
+    where: { id: courseId },
+    select: { authorId: true },
   });
 
   if (!existingCourse) {
     throw new AppError('Course not found', 404);
   }
 
+  if (teacherRole !== 'ADMIN' && existingCourse.authorId !== teacherId) {
+    throw new AppError('You can only update your own courses', 403);
+  }
+
   const course = await prisma.course.update({
-    where: { id },
+    where: { id: courseId },
     data: {
       ...(data.title !== undefined && { title: data.title }),
       ...(data.description !== undefined && { description: data.description }),
@@ -265,22 +280,33 @@ export const updateCourse = async (id: string, data: UpdateCourseInput) => {
   return course;
 };
 
-export const deleteCourse = async (id: string) => {
+// ==================== DELETE COURSE (WITH OWNERSHIP CHECK) ====================
+
+export const deleteCourse = async (
+  courseId: string,
+  teacherId: string,
+  teacherRole: string
+) => {
   const existingCourse = await prisma.course.findUnique({
-    where: { id },
+    where: { id: courseId },
+    select: { authorId: true },
   });
 
   if (!existingCourse) {
     throw new AppError('Course not found', 404);
   }
 
+  if (teacherRole !== 'ADMIN' && existingCourse.authorId !== teacherId) {
+    throw new AppError('You can only delete your own courses', 403);
+  }
+
   await prisma.$transaction([
-    prisma.comment.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
-    prisma.like.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
-    prisma.rating.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
-    prisma.favorite.deleteMany({ where: { entityType: 'COURSE', entityId: id } }),
-    prisma.coursePurchase.deleteMany({ where: { courseId: id } }),
-    prisma.course.delete({ where: { id } }),
+    prisma.comment.deleteMany({ where: { entityType: 'COURSE', entityId: courseId } }),
+    prisma.like.deleteMany({ where: { entityType: 'COURSE', entityId: courseId } }),
+    prisma.rating.deleteMany({ where: { entityType: 'COURSE', entityId: courseId } }),
+    prisma.favorite.deleteMany({ where: { entityType: 'COURSE', entityId: courseId } }),
+    prisma.coursePurchase.deleteMany({ where: { courseId: courseId } }),
+    prisma.course.delete({ where: { id: courseId } }),
   ]);
 
   return { message: 'Course deleted successfully' };

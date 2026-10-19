@@ -6,8 +6,12 @@ import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
-import authRoutes from './modules/auth/auth.routes';  // ← جدید
+
+// ==================== ROUTES IMPORT ====================
+
+import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/user/user.routes';
+import adminRoutes from './modules/admin/admin.routes';
 import newsRoutes from './modules/news/news.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
 import courseRoutes from './modules/course/course.routes';
@@ -61,8 +65,9 @@ app.get('/', (_req: Request, res: Response) => {
 
 // ==================== ROUTES ====================
 
-app.use('/api/auth', authRoutes);       // ← جدید
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/courses', courseRoutes);
