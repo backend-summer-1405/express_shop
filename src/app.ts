@@ -15,6 +15,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import newsRoutes from './modules/news/news.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
 import courseRoutes from './modules/course/course.routes';
+import podcastRoutes from './modules/podcast/podcast.routes';
 
 const app: Application = express();
 
@@ -71,6 +72,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/podcasts', podcastRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 

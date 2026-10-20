@@ -84,3 +84,16 @@ export const uploadMultipleImages = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter,
 }).array('images', 5);
+
+
+
+export const uploadPodcastFiles = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
+  fileFilter,
+}).fields([
+  { name: 'audioFile', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 },
+]);
