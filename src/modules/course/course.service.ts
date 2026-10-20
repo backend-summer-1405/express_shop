@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
+import * as sharedService from '../shared/shared.service';
 
 // ==================== TYPES ====================
 
@@ -312,120 +313,6 @@ export const deleteCourse = async (
   return { message: 'Course deleted successfully' };
 };
 
-// ==================== COMMENTS ====================
-
-export const addComment = async (
-  courseId: string,
-  userId: string,
-  content: string,
-  parentId?: string
-) => {
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
-  if (!course) {
-    throw new AppError('Course not found', 404);
-  }
-
-  if (parentId) {
-    const parent = await prisma.comment.findUnique({ where: { id: parentId } });
-    if (!parent) {
-      throw new AppError('Parent comment not found', 404);
-    }
-    if (parent.entityType !== 'COURSE' || parent.entityId !== courseId) {
-      throw new AppError('Parent comment does not belong to this course', 400);
-    }
-  }
-
-  const comment = await prisma.comment.create({
-    data: {
-      entityType: 'COURSE',
-      entityId: courseId,
-      userId,
-      content,
-      parentId,
-    },
-    include: {
-      user: { select: { id: true, name: true } },
-    },
-  });
-
-  return comment;
-};
-
-export const deleteComment = async (commentId: string, userId: string, userRole: string) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
-
-  if (!comment) {
-    throw new AppError('Comment not found', 404);
-  }
-
-  if (comment.userId !== userId && userRole !== 'ADMIN') {
-    throw new AppError('You are not authorized to delete this comment', 403);
-  }
-
-  await prisma.comment.delete({ where: { id: commentId } });
-
-  return { message: 'Comment deleted successfully' };
-};
-
-// ==================== LIKE / DISLIKE ====================
-
-export const toggleLike = async (
-  courseId: string,
-  userId: string,
-  type: 'LIKE' | 'DISLIKE'
-) => {
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
-  if (!course) {
-    throw new AppError('Course not found', 404);
-  }
-
-  const existing = await prisma.like.findUnique({
-    where: {
-      entityType_entityId_userId: {
-        entityType: 'COURSE',
-        entityId: courseId,
-        userId,
-      },
-    },
-  });
-
-  if (existing) {
-    if (existing.type === type) {
-      await prisma.like.delete({ where: { id: existing.id } });
-      return { message: `${type} removed`, action: 'removed', isLiked: false };
-    }
-
-    const updated = await prisma.like.update({
-      where: { id: existing.id },
-      data: { type },
-    });
-    return {
-      message: `Changed to ${type}`,
-      action: 'updated',
-      isLiked: type === 'LIKE',
-      data: updated,
-    };
-  }
-
-  const like = await prisma.like.create({
-    data: {
-      entityType: 'COURSE',
-      entityId: courseId,
-      userId,
-      type,
-    },
-  });
-
-  return {
-    message: `${type} added`,
-    action: 'created',
-    isLiked: type === 'LIKE',
-    data: like,
-  };
-};
-
 // ==================== FAVORITE ====================
 
 export const toggleFavorite = async (courseId: string, userId: string) => {
@@ -491,44 +378,37 @@ export const getMyFavorites = async (userId: string) => {
   return courses;
 };
 
+// ==================== COMMENTS ====================
+
+export const addComment = async (
+  courseId: string,
+  userId: string,
+  content: string,
+  parentId?: string
+) => {
+  return await sharedService.addComment('COURSE', courseId, userId, content, parentId);
+};
+
+export const deleteComment = async (
+  commentId: string,
+  userId: string,
+  userRole: string
+) => {
+  return await sharedService.deleteComment(commentId, userId, userRole);
+};
+
+// ==================== LIKE / DISLIKE ====================
+
+export const toggleLike = async (
+  courseId: string,
+  userId: string,
+  type: 'LIKE' | 'DISLIKE'
+) => {
+  return await sharedService.toggleLike('COURSE', courseId, userId, type);
+};
+
 // ==================== RATING ====================
 
 export const addRating = async (courseId: string, userId: string, value: number) => {
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
-  if (!course) {
-    throw new AppError('Course not found', 404);
-  }
-
-  if (value < 1 || value > 5) {
-    throw new AppError('Rating value must be between 1 and 5', 400);
-  }
-
-  const existing = await prisma.rating.findUnique({
-    where: {
-      entityType_entityId_userId: {
-        entityType: 'COURSE',
-        entityId: courseId,
-        userId,
-      },
-    },
-  });
-
-  if (existing) {
-    const updated = await prisma.rating.update({
-      where: { id: existing.id },
-      data: { value },
-    });
-    return { message: 'Rating updated', data: updated };
-  }
-
-  const rating = await prisma.rating.create({
-    data: {
-      entityType: 'COURSE',
-      entityId: courseId,
-      userId,
-      value,
-    },
-  });
-
-  return { message: 'Rating added', data: rating };
+  return await sharedService.addRating('COURSE', courseId, userId, value);
 };

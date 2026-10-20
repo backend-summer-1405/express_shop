@@ -16,6 +16,7 @@ import newsRoutes from './modules/news/news.routes';
 import walletRoutes from './modules/wallet/wallet.routes';
 import courseRoutes from './modules/course/course.routes';
 import podcastRoutes from './modules/podcast/podcast.routes';
+import sharedRoutes from './modules/shared/shared.routes';
 
 const app: Application = express();
 
@@ -73,6 +74,7 @@ app.use('/api/news', newsRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/podcasts', podcastRoutes);
+app.use('/api/shared', sharedRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 

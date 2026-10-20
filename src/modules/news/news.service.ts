@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
+import * as sharedService from '../shared/shared.service';
 
 // ==================== TYPES ====================
 
@@ -69,8 +70,6 @@ export const getAllNews = async (
           _count: { value: true },
         }),
       ]);
-
-      // ==================== isLiked و userRating ====================
 
       let isLiked = false;
       let userRating: number | null = null;
@@ -164,8 +163,6 @@ export const getNewsById = async (id: string, userId?: string) => {
     }),
   ]);
 
-  // ==================== isLiked و userRating ====================
-
   let isLiked = false;
   let userRating: number | null = null;
 
@@ -255,7 +252,7 @@ export const deleteNews = async (id: string) => {
   return { message: 'News deleted successfully' };
 };
 
-// ==================== COMMENTS ====================
+// ==================== COMMENTS (SHARED) ====================
 
 export const addComment = async (
   newsId: string,
@@ -263,152 +260,29 @@ export const addComment = async (
   content: string,
   parentId?: string
 ) => {
-  const news = await prisma.news.findUnique({ where: { id: newsId } });
-  if (!news) {
-    throw new AppError('News not found', 404);
-  }
-
-  if (parentId) {
-    const parent = await prisma.comment.findUnique({ where: { id: parentId } });
-    if (!parent) {
-      throw new AppError('Parent comment not found', 404);
-    }
-    if (parent.entityType !== 'NEWS' || parent.entityId !== newsId) {
-      throw new AppError('Parent comment does not belong to this news', 400);
-    }
-  }
-
-  const comment = await prisma.comment.create({
-    data: {
-      entityType: 'NEWS',
-      entityId: newsId,
-      userId,
-      content,
-      parentId,
-    },
-    include: {
-      user: { select: { id: true, name: true } },
-    },
-  });
-
-  return comment;
+  return await sharedService.addComment('NEWS', newsId, userId, content, parentId);
 };
 
-export const deleteComment = async (commentId: string, userId: string, userRole: string) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
-
-  if (!comment) {
-    throw new AppError('Comment not found', 404);
-  }
-
-  if (comment.userId !== userId && userRole !== 'ADMIN') {
-    throw new AppError('You are not authorized to delete this comment', 403);
-  }
-
-  await prisma.comment.delete({
-    where: { id: commentId },
-  });
-
-  return { message: 'Comment deleted successfully' };
+export const deleteComment = async (
+  commentId: string,
+  userId: string,
+  userRole: string
+) => {
+  return await sharedService.deleteComment(commentId, userId, userRole);
 };
 
-// ==================== LIKE / DISLIKE ====================
+// ==================== LIKE / DISLIKE (SHARED) ====================
 
 export const toggleLike = async (
   newsId: string,
   userId: string,
   type: 'LIKE' | 'DISLIKE'
 ) => {
-  const news = await prisma.news.findUnique({ where: { id: newsId } });
-  if (!news) {
-    throw new AppError('News not found', 404);
-  }
-
-  const existing = await prisma.like.findUnique({
-    where: {
-      entityType_entityId_userId: {
-        entityType: 'NEWS',
-        entityId: newsId,
-        userId,
-      },
-    },
-  });
-
-  if (existing) {
-    if (existing.type === type) {
-      await prisma.like.delete({ where: { id: existing.id } });
-      return { message: `${type} removed`, action: 'removed', isLiked: false };
-    }
-
-    const updated = await prisma.like.update({
-      where: { id: existing.id },
-      data: { type },
-    });
-    return {
-      message: `Changed to ${type}`,
-      action: 'updated',
-      isLiked: type === 'LIKE',
-      data: updated,
-    };
-  }
-
-  const like = await prisma.like.create({
-    data: {
-      entityType: 'NEWS',
-      entityId: newsId,
-      userId,
-      type,
-    },
-  });
-
-  return {
-    message: `${type} added`,
-    action: 'created',
-    isLiked: type === 'LIKE',
-    data: like,
-  };
+  return await sharedService.toggleLike('NEWS', newsId, userId, type);
 };
 
-// ==================== RATING ====================
+// ==================== RATING (SHARED) ====================
 
 export const addRating = async (newsId: string, userId: string, value: number) => {
-  const news = await prisma.news.findUnique({ where: { id: newsId } });
-  if (!news) {
-    throw new AppError('News not found', 404);
-  }
-
-  if (value < 1 || value > 5) {
-    throw new AppError('Rating value must be between 1 and 5', 400);
-  }
-
-  const existing = await prisma.rating.findUnique({
-    where: {
-      entityType_entityId_userId: {
-        entityType: 'NEWS',
-        entityId: newsId,
-        userId,
-      },
-    },
-  });
-
-  if (existing) {
-    const updated = await prisma.rating.update({
-      where: { id: existing.id },
-      data: { value },
-    });
-    return { message: 'Rating updated', data: updated };
-  }
-
-  const rating = await prisma.rating.create({
-    data: {
-      entityType: 'NEWS',
-      entityId: newsId,
-      userId,
-      value,
-    },
-  });
-
-  return { message: 'Rating added', data: rating };
+  return await sharedService.addRating('NEWS', newsId, userId, value);
 };
