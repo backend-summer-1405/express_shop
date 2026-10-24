@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
 import { generateToken } from '../../utils/jwt';
+import redis from '../../lib/redis';
+import jwt from 'jsonwebtoken';
 
 // ==================== REGISTER ====================
 
@@ -88,4 +90,28 @@ export const login = async (data: LoginInput) => {
   const { password: _, ...userWithoutPassword } = user;
 
   return { user: userWithoutPassword, token };
+};
+
+// ==================== LOGOUT (WITH BLACKLIST) ====================
+
+export const logout = async (token: string) => {
+  try {
+    const decoded = jwt.decode(token) as { exp: number; jti?: string };
+
+    if (!decoded || !decoded.exp) {
+      throw new Error('Invalid token');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const ttl = decoded.exp - now;
+
+    if (ttl > 0) {
+      await redis.set(`revoked:${token}`, '1', 'EX', ttl);
+    }
+
+    return { message: 'Logged out successfully' };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return { message: 'Logged out successfully' };
+  }
 };

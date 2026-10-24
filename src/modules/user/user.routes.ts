@@ -105,7 +105,7 @@ router.post(
   userController.uploadProfileImages
 );
 
-export default router;
+
 
 
 /**
@@ -133,3 +133,40 @@ export default router;
  *         description: Image not found
  */
 router.delete('/me/images/:imageId', authenticate, userController.deleteProfileImage);
+
+/**
+ * @swagger
+ * /api/users/me/images:
+ *   get:
+ *     summary: Get current user's profile images
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of profile images
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/me/images', authenticate, userController.getProfileImages);
+
+
+
+/**
+ * @swagger
+ * /api/users/me/images:
+ *   get:
+ *     summary: Get current user's profile images
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of profile images
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/me/images', authenticate, userController.getProfileImages);
+
+
+export default router;

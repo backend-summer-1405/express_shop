@@ -254,3 +254,54 @@ export const deleteProfileImage = async (userId: string, imageId: string) => {
 
   return { message: 'Profile image deleted successfully' };
 };
+
+// ==================== GET PROFILE IMAGES ====================
+export const getProfileImages = async (userId: string) => {
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      profiles: {
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+
+  if (!user.profiles || user.profiles.length === 0) {
+    return {
+      user: { id: user.id, name: user.name },
+      images: [],
+      total: 0,
+    };
+  }
+
+  const profileId = user.profiles[0].id;
+
+
+  const images = await prisma.profileImage.findMany({
+    where: { profileId: profileId },
+    select: {
+      id: true,
+      url: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+    },
+    images,
+    total: images.length,
+  };
+};

@@ -33,3 +33,25 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
     next(error);
   }
 };
+
+// ==================== GET RECENT USERS ====================
+
+export const getRecentUsers = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const days = parseInt(req.query.days as string) || 7;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await adminService.getRecentUsers(days, limit);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

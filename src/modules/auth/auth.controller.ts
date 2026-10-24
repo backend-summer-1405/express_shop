@@ -68,3 +68,29 @@ export const login = async (
     next(error);
   }
 };
+
+// ==================== LOGOUT ====================
+
+export const logout = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) {
+      throw new AppError('Token not provided', 400);
+    }
+
+    const result = await authService.logout(token);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

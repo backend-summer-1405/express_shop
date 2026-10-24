@@ -20,6 +20,16 @@ interface UpdateCourseInput {
   isPublished?: boolean;
 }
 
+// ==================== HELPER: BUILD COMMENT TREE ====================
+const buildCommentTree = (comments: any[], parentId: string | null = null): any[] => {
+  return comments
+    .filter((comment) => comment.parentId === parentId)
+    .map((comment) => ({
+      ...comment,
+      replies: buildCommentTree(comments, comment.id),
+    }));
+};
+
 // ==================== CREATE COURSE ====================
 
 export const createCourse = async (data: CreateCourseInput) => {
@@ -164,17 +174,13 @@ export const getCourseById = async (id: string, userId?: string) => {
     throw new AppError('Course not found', 404);
   }
 
-  const [comments, likes, ratingAvg, favoriteCount] = await Promise.all([
+  const [allComments, likes, ratingAvg, favoriteCount] = await Promise.all([
     prisma.comment.findMany({
-      where: { entityType: 'COURSE', entityId: id, parentId: null },
+      where: { entityType: 'COURSE', entityId: id },
       include: {
         user: { select: { id: true, name: true } },
-        replies: {
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: 'asc' },
-        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' }, // برای درخت‌سازی، قدیمی‌ترین‌ها اول
     }),
     prisma.like.count({ where: { entityType: 'COURSE', entityId: id, type: 'LIKE' } }),
     prisma.rating.aggregate({
@@ -184,6 +190,9 @@ export const getCourseById = async (id: string, userId?: string) => {
     }),
     prisma.favorite.count({ where: { entityType: 'COURSE', entityId: id } }),
   ]);
+
+
+  const commentTree = buildCommentTree(allComments);
 
   let isLiked = false;
   let isFavorite = false;
@@ -227,7 +236,7 @@ export const getCourseById = async (id: string, userId?: string) => {
 
   return {
     ...course,
-    comments,
+    comments: commentTree,
     isLiked,
     isFavorite,
     userRating,
@@ -235,7 +244,7 @@ export const getCourseById = async (id: string, userId?: string) => {
       likes,
       rating: ratingAvg._avg.value || 0,
       ratingCount: ratingAvg._count.value,
-      commentCount: comments.length,
+      commentCount: allComments.length,
       favorites: favoriteCount,
     },
   };
@@ -378,7 +387,7 @@ export const getMyFavorites = async (userId: string) => {
   return courses;
 };
 
-// ==================== COMMENTS ====================
+// ==================== COMMENTS (DELEGATED TO SHARED SERVICE) ====================
 
 export const addComment = async (
   courseId: string,
@@ -397,7 +406,7 @@ export const deleteComment = async (
   return await sharedService.deleteComment(commentId, userId, userRole);
 };
 
-// ==================== LIKE / DISLIKE ====================
+// ==================== LIKE / DISLIKE (DELEGATED) ====================
 
 export const toggleLike = async (
   courseId: string,
@@ -407,7 +416,7 @@ export const toggleLike = async (
   return await sharedService.toggleLike('COURSE', courseId, userId, type);
 };
 
-// ==================== RATING ====================
+// ==================== RATING (DELEGATED) ====================
 
 export const addRating = async (courseId: string, userId: string, value: number) => {
   return await sharedService.addRating('COURSE', courseId, userId, value);

@@ -3,6 +3,7 @@ import * as authController from './auth.controller';
 import { validate } from '../../middlewares/validate.middleware';
 import { registerSchema, loginSchema } from './auth.validation';
 import { authLimiter } from '../../middlewares/rateLimiter.middleware';
+import { authenticate } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -69,5 +70,21 @@ router.post('/register', authLimiter, validate(registerSchema), authController.r
  *         description: Invalid credentials
  */
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout current user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/logout', authenticate, authController.logout);
 
 export default router;

@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+
+*.js linguist-detectable=false
+*.json linguist-detectable=false
+*.css linguist-detectable=false
+*.html linguist-detectable=false
+
+uploads/* linguist-vendored
+docs/* linguist-documentation

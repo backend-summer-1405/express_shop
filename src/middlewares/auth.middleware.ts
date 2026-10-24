@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './errorHandler';
+import redis from '../lib/redis';
 
 // ==================== TYPES ====================
 
@@ -20,11 +21,11 @@ interface JwtPayload {
 
 // ==================== AUTHENTICATE (REQUIRED) ====================
 
-export const authenticate = (
+export const authenticate = async (
   req: AuthRequest,
   _res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -43,6 +44,11 @@ export const authenticate = (
       process.env.JWT_SECRET || 'default_secret'
     ) as JwtPayload;
 
+    const isRevoked = await redis.exists(`revoked:${token}`);
+    if (isRevoked) {
+      throw new AppError('Token has been revoked. Please login again.', 401);
+    }
+
     req.user = {
       id: decoded.id,
       email: decoded.email,
@@ -51,17 +57,20 @@ export const authenticate = (
 
     next();
   } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new AppError('Invalid token', 401));
+    }
     next(error);
   }
 };
 
 // ==================== OPTIONAL AUTH ====================
 
-export const optionalAuth = (
+export const optionalAuth = async (
   req: AuthRequest,
   _res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -82,11 +91,15 @@ export const optionalAuth = (
       process.env.JWT_SECRET || 'default_secret'
     ) as JwtPayload;
 
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-    };
+    const isRevoked = await redis.exists(`revoked:${token}`);
+
+    if (!isRevoked) {
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role,
+      };
+    }
 
     next();
   } catch (error) {

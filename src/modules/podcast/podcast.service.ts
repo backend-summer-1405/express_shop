@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middlewares/errorHandler';
-import * as sharedService from '../shared/shared.service'
+import * as sharedService from '../shared/shared.service';
 
 // ==================== TYPES ====================
 
@@ -17,6 +17,16 @@ interface UpdatePodcastInput {
   description?: string;
   coverImage?: string;
 }
+
+// ==================== HELPER: BUILD COMMENT TREE ====================
+const buildCommentTree = (comments: any[], parentId: string | null = null): any[] => {
+  return comments
+    .filter((comment) => comment.parentId === parentId)
+    .map((comment) => ({
+      ...comment,
+      replies: buildCommentTree(comments, comment.id),
+    }));
+};
 
 // ==================== CRUD PODCAST ====================
 
@@ -73,7 +83,6 @@ export const getAllPodcasts = async (
         prisma.podcastPlay.count({ where: { podcastId: podcast.id } }),
       ]);
 
-      // چک isLiked, userRating
       let isLiked = false;
       let userRating: number | null = null;
 
@@ -143,17 +152,13 @@ export const getPodcastById = async (id: string, userId?: string) => {
     throw new AppError('Podcast not found', 404);
   }
 
-  const [comments, likes, ratingAvg, playCount] = await Promise.all([
+  const [allComments, likes, ratingAvg, playCount] = await Promise.all([
     prisma.comment.findMany({
-      where: { entityType: 'PODCAST', entityId: id, parentId: null },
+      where: { entityType: 'PODCAST', entityId: id },
       include: {
         user: { select: { id: true, name: true } },
-        replies: {
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: 'asc' },
-        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     }),
     prisma.like.count({ where: { entityType: 'PODCAST', entityId: id, type: 'LIKE' } }),
     prisma.rating.aggregate({
@@ -163,6 +168,9 @@ export const getPodcastById = async (id: string, userId?: string) => {
     }),
     prisma.podcastPlay.count({ where: { podcastId: id } }),
   ]);
+
+
+  const commentTree = buildCommentTree(allComments);
 
   let isLiked = false;
   let userRating: number | null = null;
@@ -195,14 +203,14 @@ export const getPodcastById = async (id: string, userId?: string) => {
 
   return {
     ...podcast,
-    comments,
+    comments: commentTree,
     isLiked,
     userRating,
     stats: {
       likes,
       rating: ratingAvg._avg.value || 0,
       ratingCount: ratingAvg._count.value,
-      commentCount: comments.length,
+      commentCount: allComments.length,
       plays: playCount,
     },
   };

@@ -17,6 +17,20 @@ router.use(authenticate, adminOnly);
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: List of users
  */
 router.get('/users', adminController.getAllUsers);
 
@@ -28,6 +42,25 @@ router.get('/users', adminController.getAllUsers);
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [USER, TEACHER]
+ *     responses:
+ *       200:
+ *         description: Role updated
  */
 router.patch('/users/:id/role', validate(changeRoleSchema), adminController.changeUserRole);
 
@@ -39,7 +72,43 @@ router.patch('/users/:id/role', validate(changeRoleSchema), adminController.chan
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted
  */
 router.delete('/users/:id', adminController.deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/recent-users:
+ *   get:
+ *     summary: Get users who joined in the last N days (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *         description: Number of past days to look back (e.g. 7)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Maximum number of users to return
+ *     responses:
+ *       200:
+ *         description: List of recently joined users
+ */
+router.get('/recent-users', adminController.getRecentUsers);
 
 export default router;

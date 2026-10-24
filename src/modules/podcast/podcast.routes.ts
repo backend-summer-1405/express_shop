@@ -3,7 +3,7 @@ import * as podcastController from './podcast.controller';
 import { authenticate, optionalAuth } from '../../middlewares/auth.middleware';
 import { adminOnly } from '../../middlewares/role.middleware';
 import { validate } from '../../middlewares/validate.middleware';
-import { uploadPodcastFiles } from '../../middlewares/upload.middleware'; // ← میدل‌ور جدید
+import { uploadPodcastFiles } from '../../middlewares/upload.middleware';
 import {
   createPodcastSchema,
   updatePodcastSchema,
@@ -22,8 +22,48 @@ const router = Router();
  *   get:
  *     summary: Get all podcasts
  *     tags: [Podcasts]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: List of podcasts
  */
 router.get('/', optionalAuth, podcastController.getAllPodcasts);
+
+// ==================== STATIC ROUTES ====================
+
+/**
+ * @swagger
+ * /api/podcasts/comments/{commentId}:
+ *   delete:
+ *     summary: Delete comment
+ *     tags: [Podcasts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Comment deleted
+ */
+router.delete('/comments/:commentId', authenticate, podcastController.deleteComment);
+
+// ==================== DYNAMIC ROUTES (/:id) ====================
 
 /**
  * @swagger
@@ -31,12 +71,21 @@ router.get('/', optionalAuth, podcastController.getAllPodcasts);
  *   get:
  *     summary: Get podcast by ID
  *     tags: [Podcasts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Podcast details
+ *       404:
+ *         description: Podcast not found
  */
 router.get('/:id', optionalAuth, podcastController.getPodcastById);
 
 // ==================== CREATE / UPDATE / DELETE (Admin only) ====================
-
-// ==================== CREATE PODCAST (Admin only) ====================
 
 /**
  * @swagger
@@ -87,6 +136,12 @@ router.post(
  *     tags: [Podcasts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -122,6 +177,15 @@ router.put(
  *     tags: [Podcasts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Podcast deleted
  */
 router.delete('/:id', authenticate, adminOnly, podcastController.deletePodcast);
 
@@ -135,6 +199,28 @@ router.delete('/:id', authenticate, adminOnly, podcastController.deletePodcast);
  *     tags: [Podcasts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *               parentId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Comment added
  */
 router.post(
   '/:id/comments',
@@ -142,17 +228,6 @@ router.post(
   validate(addCommentSchema),
   podcastController.addComment
 );
-
-/**
- * @swagger
- * /api/podcasts/comments/{commentId}:
- *   delete:
- *     summary: Delete comment
- *     tags: [Podcasts]
- *     security:
- *       - bearerAuth: []
- */
-router.delete('/comments/:commentId', authenticate, podcastController.deleteComment);
 
 // ==================== LIKE ROUTES ====================
 
@@ -164,6 +239,27 @@ router.delete('/comments/:commentId', authenticate, podcastController.deleteComm
  *     tags: [Podcasts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - type
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [LIKE, DISLIKE]
+ *     responses:
+ *       200:
+ *         description: Like toggled
  */
 router.post(
   '/:id/like',
@@ -182,6 +278,28 @@ router.post(
  *     tags: [Podcasts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - value
+ *             properties:
+ *               value:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *     responses:
+ *       200:
+ *         description: Rating added
  */
 router.post(
   '/:id/rate',
@@ -198,6 +316,15 @@ router.post(
  *   post:
  *     summary: Record a play (for statistics)
  *     tags: [Podcasts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Play recorded
  */
 router.post('/:id/play', optionalAuth, podcastController.recordPlay);
 
@@ -207,6 +334,15 @@ router.post('/:id/play', optionalAuth, podcastController.recordPlay);
  *   get:
  *     summary: Get podcast statistics
  *     tags: [Podcasts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Podcast statistics
  */
 router.get('/:id/stats', podcastController.getStats);
 

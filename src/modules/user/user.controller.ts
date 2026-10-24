@@ -148,3 +148,26 @@ export const deleteProfileImage = async (
     next(error);
   }
 };
+
+// ==================== GET PROFILE IMAGES ====================
+export const getProfileImages = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const result = await userService.getProfileImages(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
