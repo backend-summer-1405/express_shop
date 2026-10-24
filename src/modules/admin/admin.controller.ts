@@ -1,7 +1,9 @@
 import { Response, NextFunction } from 'express';
 import * as adminService from './admin.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
+import { AppError } from '../../middlewares/errorHandler';
 
+// ==================== GET ALL USERS ====================
 export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -13,6 +15,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
+// ==================== CHANGE USER ROLE ====================
 export const changeUserRole = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -24,10 +27,17 @@ export const changeUserRole = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
+// ==================== DELETE USER ====================
 export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const id = req.params.id as string;
-    const result = await adminService.deleteUserById(id);
+    const targetUserId = req.params.id as string;
+
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const result = await adminService.deleteUserById(targetUserId, req.user.id);
+
     res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     next(error);
@@ -35,7 +45,6 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
 };
 
 // ==================== GET RECENT USERS ====================
-
 export const getRecentUsers = async (
   req: AuthRequest,
   res: Response,

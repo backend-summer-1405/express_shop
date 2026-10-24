@@ -62,11 +62,13 @@ model User {
   password      String
   name          String?
   role          Role      @default(USER)
-  isActive      Boolean   @default(true)
   emailVerified Boolean   @default(false)
   lastLogin     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  isActive      Boolean   @default(false)
+  otpCode       String?
+  otpExpiresAt  DateTime?
 
   profiles     Profile[]
   news         News[]

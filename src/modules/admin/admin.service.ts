@@ -21,7 +21,6 @@ export const changeUserRole = async (id: string, role: 'USER' | 'TEACHER') => {
   const existingUser = await prisma.user.findUnique({ where: { id } });
   if (!existingUser) throw new AppError('User not found', 404);
 
-
   if (existingUser.role === 'ADMIN') {
     throw new AppError('You cannot change the role of an admin', 403);
   }
@@ -34,68 +33,36 @@ export const changeUserRole = async (id: string, role: 'USER' | 'TEACHER') => {
 };
 
 // ==================== DELETE USER BY ID ====================
-export const deleteUserById = async (id: string) => {
-  const existingUser = await prisma.user.findUnique({ where: { id } });
+
+export const deleteUserById = async (targetUserId: string, currentAdminId: string) => {
+  const existingUser = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!existingUser) throw new AppError('User not found', 404);
 
-
-  if (existingUser.role === 'ADMIN') {
-    throw new AppError('You cannot delete an admin user', 403);
+  if (existingUser.role === 'ADMIN' && existingUser.id !== currentAdminId) {
+    throw new AppError('You cannot delete another admin user', 403);
   }
 
+  await prisma.user.delete({ where: { id: targetUserId } });
 
-  await prisma.$transaction([
-    prisma.comment.deleteMany({ where: { userId: id } }),
-    prisma.like.deleteMany({ where: { userId: id } }),
-    prisma.rating.deleteMany({ where: { userId: id } }),
-    prisma.favorite.deleteMany({ where: { userId: id } }),
-    prisma.podcastPlay.deleteMany({ where: { userId: id } }),
-    prisma.transaction.deleteMany({ where: { userId: id } }),
-    prisma.coursePurchase.deleteMany({ where: { userId: id } }),
-    prisma.wallet.deleteMany({ where: { userId: id } }),
-    prisma.user.delete({ where: { id } }),
-  ]);
-
-  return { message: 'User deleted successfully by admin' };
+  return { message: 'User deleted successfully' };
 };
 
-
 // ==================== GET RECENT USERS ====================
-
 export const getRecentUsers = async (days: number = 7, limit: number = 10) => {
-
   const pastDate = new Date();
   pastDate.setDate(pastDate.getDate() - days);
 
   const [users, total] = await Promise.all([
     prisma.user.findMany({
-      where: {
-        createdAt: {
-          gte: pastDate,
-        },
-      },
+      where: { createdAt: { gte: pastDate } },
       take: limit,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.user.count({
-      where: {
-        createdAt: {
-          gte: pastDate,
-        },
-      },
+      where: { createdAt: { gte: pastDate } },
     }),
   ]);
 
-  return {
-    days,
-    total,
-    users,
-  };
+  return { days, total, users };
 };

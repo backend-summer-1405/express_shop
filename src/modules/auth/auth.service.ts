@@ -4,54 +4,7 @@ import { AppError } from '../../middlewares/errorHandler';
 import { generateToken } from '../../utils/jwt';
 import redis from '../../lib/redis';
 import jwt from 'jsonwebtoken';
-
-// ==================== REGISTER ====================
-
-interface RegisterInput {
-  email: string;
-  password: string;
-  name?: string;
-}
-
-export const register = async (data: RegisterInput) => {
-  const { email, password, name } = data;
-
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (existingUser) {
-    throw new AppError('Email already exists', 409);
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-    },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      createdAt: true,
-    },
-  });
-
-
-  const token = generateToken({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-  });
-
-  return { user, token };
-};
+import { sendOtpEmail } from '../../lib/mailer';
 
 // ==================== LOGIN ====================
 
@@ -63,7 +16,6 @@ interface LoginInput {
 export const login = async (data: LoginInput) => {
   const { email, password } = data;
 
-
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -71,7 +23,9 @@ export const login = async (data: LoginInput) => {
   if (!user) {
     throw new AppError('Invalid email or password', 401);
   }
-
+  if (!user.isActive) {
+    throw new AppError('Please verify your email first', 401);
+  }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
@@ -79,13 +33,11 @@ export const login = async (data: LoginInput) => {
     throw new AppError('Invalid email or password', 401);
   }
 
-
   const token = generateToken({
     id: user.id,
     email: user.email,
     role: user.role,
   });
-
 
   const { password: _, ...userWithoutPassword } = user;
 
@@ -114,4 +66,62 @@ export const logout = async (token: string) => {
     console.error('Logout error:', error);
     return { message: 'Logged out successfully' };
   }
+};
+
+// ==================== REGISTER INITIATE (STEP 1) ====================
+export const registerInitiate = async (email: string, password: string, name?: string) => {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+
+  if (existingUser && existingUser.isActive) {
+    throw new AppError('User with this email already exists', 409);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  if (existingUser) {
+    await prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword, name, otpCode, otpExpiresAt },
+    });
+  } else {
+    await prisma.user.create({
+      data: { email, password: hashedPassword, name, otpCode, otpExpiresAt },
+    });
+  }
+
+  await sendOtpEmail(email, otpCode);
+
+  return { message: 'Verification code sent to your email' };
+};
+
+// ==================== REGISTER VERIFY (STEP 2) ====================
+export const registerVerify = async (email: string, code: string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) throw new AppError('User not found', 404);
+  if (user.isActive) throw new AppError('User already verified', 400);
+
+  if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+    throw new AppError('Verification code has expired', 400);
+  }
+
+  if (user.otpCode !== code) {
+    throw new AppError('Invalid verification code', 400);
+  }
+
+  await prisma.user.update({
+    where: { email },
+    data: { isActive: true, otpCode: null, otpExpiresAt: null },
+  });
+
+  const token = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '7d' }
+  );
+
+  return { message: 'Registration completed successfully', token };
 };
