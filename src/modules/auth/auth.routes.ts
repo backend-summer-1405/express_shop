@@ -6,7 +6,9 @@ import { validate } from '../../middlewares/validate.middleware';
 import {
   loginSchema,
   registerInitiateSchema,
-  registerVerifySchema
+  registerVerifySchema,
+  forgotPasswordSchema,
+  resetPasswordSchema
 } from './auth.validation';
 
 const router = Router();
@@ -117,6 +119,69 @@ router.post(
   '/register/verify',
   validate(registerVerifySchema),
   authController.registerVerify
+);
+
+// ==================== FORGOT PASSWORD ====================
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset code (Step 1)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Reset code sent to email
+ */
+router.post(
+  '/forgot-password',
+  authLimiter,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword
+);
+
+// ==================== RESET PASSWORD ====================
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using the code (Step 2)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ */
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  authController.resetPassword
 );
 
 export default router;

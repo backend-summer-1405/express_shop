@@ -67,8 +67,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   isActive      Boolean   @default(false)
+
   otpCode       String?
   otpExpiresAt  DateTime?
+
+  resetCode        String?
+  resetCodeExpiresAt DateTime?
+
 
   profiles     Profile[]
   news         News[]

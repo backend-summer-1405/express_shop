@@ -4,7 +4,7 @@ import { AppError } from '../../middlewares/errorHandler';
 import { generateToken } from '../../utils/jwt';
 import redis from '../../lib/redis';
 import jwt from 'jsonwebtoken';
-import { sendOtpEmail } from '../../lib/mailer';
+import { sendOtpEmail, sendResetPasswordEmail } from '../../lib/mailer';
 
 // ==================== LOGIN ====================
 
@@ -124,4 +124,57 @@ export const registerVerify = async (email: string, code: string) => {
   );
 
   return { message: 'Registration completed successfully', token };
+};
+
+// ==================== FORGOT PASSWORD (STEP 1) ====================
+
+export const forgotPassword = async (email: string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+
+  if (!user) {
+    return { message: 'If the email exists, a reset code has been sent.' };
+  }
+
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const resetCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { email },
+    data: { resetCode, resetCodeExpiresAt },
+  });
+
+  await sendResetPasswordEmail(email, resetCode);
+
+  return { message: 'If the email exists, a reset code has been sent.' };
+};
+
+// ==================== RESET PASSWORD (STEP 2) ====================
+export const resetPassword = async (email: string, code: string, newPassword: string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    throw new AppError('Invalid email or code', 400);
+  }
+
+  if (!user.resetCodeExpiresAt || user.resetCodeExpiresAt < new Date()) {
+    throw new AppError('Reset code has expired', 400);
+  }
+
+  if (user.resetCode !== code) {
+    throw new AppError('Invalid reset code', 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: { email },
+    data: {
+      password: hashedPassword,
+      resetCode: null,
+      resetCodeExpiresAt: null,
+    },
+  });
+
+  return { message: 'Password reset successfully. You can now login.' };
 };
