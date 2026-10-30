@@ -17,6 +17,7 @@ import walletRoutes from './modules/wallet/wallet.routes';
 import courseRoutes from './modules/course/course.routes';
 import podcastRoutes from './modules/podcast/podcast.routes';
 import sharedRoutes from './modules/shared/shared.routes';
+import categoryRoutes from './modules/category/category.routes';
 
 const app: Application = express();
 
@@ -75,6 +76,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/podcasts', podcastRoutes);
 app.use('/api/shared', sharedRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // ==================== 404 & ERROR HANDLERS ====================
 

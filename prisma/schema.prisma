@@ -293,3 +293,16 @@ model Favorite {
   @@index([entityType, entityId])
   @@map("favorites")
 }
+
+// ==================== CATEGORY MODULE ====================
+
+model Category {
+  id        String   @id @default(uuid())
+  nameFa    String
+  nameEn    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
